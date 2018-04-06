@@ -1,8 +1,8 @@
-package stone.lmj.demo.service;
+package com.lmj.stone.demo.service;
 
 
 
-import stone.lmj.demo.persistence.dobj.CityDO;
+import com.lmj.stone.demo.persistence.dobj.CityDO;
 
 import java.util.List;
 

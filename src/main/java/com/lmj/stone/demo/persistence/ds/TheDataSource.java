@@ -1,18 +1,18 @@
-package stone.lmj.demo.persistence.ds;
+package com.lmj.stone.demo.persistence.ds;
 
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
-import stone.lmj.com.dao.DataSource;
-import stone.lmj.com.dao.DataSourceConfiguration;
+import com.lmj.stone.dao.DataSource;
+import com.lmj.stone.dao.DataSourceConfiguration;
 
 @DataSourceConfiguration(
         url = @Value("${master.datasource.url}"),
         user = @Value("${master.datasource.username}"),
         password = @Value("${master.datasource.password}"),
-        basePackages = "stone.lmj.demo.persistence.dao",
+        basePackages = "com.lmj.stone.demo.persistence.dao",
         sqlSessionFactoryRef = "defaultSqlSessionFactory")
 public class TheDataSource extends DataSource {
 

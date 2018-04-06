@@ -1,8 +1,8 @@
-package stone.lmj.demo.service.impl;
+package com.lmj.stone.demo.service.impl;
 
-import stone.lmj.demo.persistence.dao.CityDAO;
-import stone.lmj.demo.persistence.dobj.CityDO;
-import stone.lmj.demo.service.CityService;
+import com.lmj.stone.demo.persistence.dao.CityDAO;
+import com.lmj.stone.demo.persistence.dobj.CityDO;
+import com.lmj.stone.demo.service.CityService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 

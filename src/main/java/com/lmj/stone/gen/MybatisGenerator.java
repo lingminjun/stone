@@ -1,8 +1,8 @@
-package stone.lmj.com.gen;
+package com.lmj.stone.gen;
 
+import com.lmj.stone.dao.TableDAO;
 import org.apache.ibatis.annotations.Mapper;
-import stone.lmj.com.dao.SQL;
-import stone.lmj.com.dao.TableDAO;
+import com.lmj.stone.dao.SQL;
 
 import java.io.*;
 import java.lang.reflect.Method;

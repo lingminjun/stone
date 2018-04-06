@@ -1,4 +1,4 @@
-package stone.lmj.com.dao;
+package com.lmj.stone.dao;
 
 import java.io.Serializable;
 import java.util.List;

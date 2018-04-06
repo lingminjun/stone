@@ -1,21 +1,11 @@
-package stone.lmj.com.dao;
+package com.lmj.stone.dao;
 
 import com.alibaba.druid.pool.DruidDataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
-import org.mybatis.spring.annotation.MapperScan;
-import org.springframework.beans.BeanWrapper;
-import org.springframework.beans.BeansException;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.SpringApplication;
-import org.springframework.context.ApplicationContext;
-import org.springframework.context.ApplicationContextAware;
 import org.springframework.context.EmbeddedValueResolverAware;
 import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
-import org.springframework.core.SpringProperties;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.util.StringValueResolver;
@@ -27,7 +17,7 @@ import org.springframework.util.StringValueResolver;
             url = @Value("${master.datasource.url}"),
             user = @Value("${master.datasource.username}"),
             password = @Value("${master.datasource.password}"),
-            basePackages = "stone.lmj.demo.persistence.dao",
+            basePackages = "com.lmj.stone.demo.persistence.dao",
             sqlSessionFactoryRef = "defaultSqlSessionFactory")
     public class TheDataSource extends DataSource {
 
@@ -76,7 +66,7 @@ public abstract class DataSource implements EmbeddedValueResolverAware {
         while (clz != null && clz.getSuperclass() != DataSource.class) {
             clz = clz.getSuperclass();
         }
-        //stone.lmj.demo.persistence.ds.TheDataSource$$EnhancerBySpringCGLIB$$affcf6af
+        //com.lmj.stone.demo.persistence.ds.TheDataSource$$EnhancerBySpringCGLIB$$affcf6af
         DataSourceConfiguration cfg = clz.getAnnotation(DataSourceConfiguration.class);
         this.url = cfg.url().value();
         this.user = cfg.user().value();

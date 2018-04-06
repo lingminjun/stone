@@ -1,4 +1,4 @@
-package stone.lmj.com.dao;
+package com.lmj.stone.dao;
 
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Value;

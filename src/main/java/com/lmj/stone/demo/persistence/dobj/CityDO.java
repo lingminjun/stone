@@ -1,4 +1,4 @@
-package stone.lmj.demo.persistence.dobj;
+package com.lmj.stone.demo.persistence.dobj;
 
 import java.io.Serializable;
 
@@ -6,7 +6,7 @@ package stone.lmj.demo.persistence.dobj;
  * Owner: Robot
  * Creator: lingminjun
  * Version: 1.0.0
- * Since: Fri Apr 06 17:55:50 CST 2018
+ * Since: Fri Apr 06 23:11:53 CST 2018
  * Table: city
  */
 public final class CityDO implements Serializable {

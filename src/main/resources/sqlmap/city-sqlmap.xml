@@ -1,19 +1,19 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD SQL 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd" >
-<mapper namespace="stone.lmj.demo.persistence.dao.CityDAO">
+<mapper namespace="com.lmj.stone.demo.persistence.dao.CityDAO">
 
-    <resultMap id="cityDOResult" type="stone.lmj.demo.persistence.dobj.CityDO">
+    <resultMap id="cityDOResult" type="com.lmj.stone.demo.persistence.dobj.CityDO">
         <result column="id" property="id"/>
         <result column="province_id" property="provinceId"/>
         <result column="city_name" property="cityName"/>
         <result column="description" property="description"/>
     </resultMap>
 
-    <insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="stone.lmj.demo.persistence.dobj.CityDO">
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id" parameterType="com.lmj.stone.demo.persistence.dobj.CityDO">
         insert into `city` (`id`,`province_id`,`city_name`,`description`) values (#{id},#{provinceId},#{cityName},#{description})
     </insert>
 
-    <insert id="insertOrUpdate" useGeneratedKeys="true" keyProperty="id" parameterType="stone.lmj.demo.persistence.dobj.CityDO">
+    <insert id="insertOrUpdate" useGeneratedKeys="true" keyProperty="id" parameterType="com.lmj.stone.demo.persistence.dobj.CityDO">
         insert into `city` (`id`,`province_id`,`city_name`,`description`) values (#{id},#{provinceId},#{cityName},#{description}) on duplicate key update 
         <if test="provinceId != null">
             ,`province_id` = #{provinceId}
@@ -26,7 +26,7 @@
         </if>
     </insert>
 
-    <update id="update" parameterType="stone.lmj.demo.persistence.dobj.CityDO">
+    <update id="update" parameterType="com.lmj.stone.demo.persistence.dobj.CityDO">
         update `city` set 
         <if test="provinceId != null">
             ,`province_id` = #{provinceId}

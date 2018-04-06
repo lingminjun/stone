@@ -1,18 +1,18 @@
-package stone.lmj.demo.persistence.dao;
+package com.lmj.stone.demo.persistence.dao;
 
-import stone.lmj.demo.persistence.dobj.CityDO;
+import com.lmj.stone.dao.TableDAO;
 import org.apache.ibatis.annotations.Param;
 import java.util.List;
-import stone.lmj.com.dao.TableDAO;
+import com.lmj.stone.demo.persistence.dobj.CityDO;
 import org.apache.ibatis.annotations.Mapper;
-import stone.lmj.com.dao.SQL;
+import com.lmj.stone.dao.SQL;
 
 
 /**
  * Owner: Robot
  * Creator: lingminjun
  * Version: 1.0.0
- * Since: Fri Apr 06 17:55:50 CST 2018
+ * Since: Fri Apr 06 23:11:54 CST 2018
  * Table: city
  */
 public interface CityDAO extends TableDAO<CityDO> {

@@ -1,4 +1,4 @@
-package stone.lmj.com.core;
+package com.lmj.stone.core;
 
 
 import org.slf4j.Logger;
