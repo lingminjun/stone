@@ -13,26 +13,30 @@ import com.lmj.stone.dao.DataSourceConfiguration;
         user = @Value("${master.datasource.username}"),
         password = @Value("${master.datasource.password}"),
         basePackages = "com.lmj.stone.demo.persistence.dao",
-        sqlSessionFactoryRef = "defaultSqlSessionFactory")
+        sqlSessionFactoryRef = TheDataSource.SQL_SESSION_FACTORY_BEAN)
 public class TheDataSource extends DataSource {
+
+    final static String DATA_SOURCE_BEAN = "defaultDataSource";
+    final static String TRANSACTION_MANAGER_BEAN = "defaultTransactionManager";
+    final static String SQL_SESSION_FACTORY_BEAN = "defaultSqlSessionFactory";
 
     @Override
     @Primary
-    @Bean(name = "defaultDataSource")
+    @Bean(name = TheDataSource.DATA_SOURCE_BEAN)
     public javax.sql.DataSource dataSource() {
         return genDataSource();
     }
 
     @Override
     @Primary
-    @Bean(name = "defaultTransactionManager")
+    @Bean(name = TheDataSource.TRANSACTION_MANAGER_BEAN)
     public DataSourceTransactionManager transactionManager() {
         return genTransactionManager();
     }
 
     @Override
     @Primary
-    @Bean(name = "defaultSqlSessionFactory")
+    @Bean(name = TheDataSource.SQL_SESSION_FACTORY_BEAN)
     public SqlSessionFactory sqlSessionFactory() throws Exception {
         return genSqlSessionFactory();
     }

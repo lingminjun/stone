@@ -4,8 +4,6 @@ import com.alibaba.druid.pool.DruidDataSource;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.springframework.context.EmbeddedValueResolverAware;
-import org.springframework.context.annotation.Bean;
-import org.springframework.context.annotation.Primary;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.util.StringValueResolver;
@@ -18,27 +16,30 @@ import org.springframework.util.StringValueResolver;
             user = @Value("${master.datasource.username}"),
             password = @Value("${master.datasource.password}"),
             basePackages = "com.lmj.stone.demo.persistence.dao",
-            sqlSessionFactoryRef = "defaultSqlSessionFactory")
-    public class TheDataSource extends DataSource {
+            sqlSessionFactoryRef = TheDataSource.SQL_SESSION_FACTORY_BEAN)
+    public class TheDataSource extends com.lmj.stone.dao.DataSource {
+
+        final static String DATA_SOURCE_BEAN = "defaultDataSource";
+        final static String TRANSACTION_MANAGER_BEAN = "defaultTransactionManager";
+        final static String SQL_SESSION_FACTORY_BEAN = "defaultSqlSessionFactory";
 
         @Override
         @Primary
-        @Bean(name = "defaultDataSource")
+        @Bean(name = TheDataSource.DATA_SOURCE_BEAN)
         public javax.sql.DataSource dataSource() {
             return genDataSource();
         }
 
-        // 若你定义的是只读数据源，则不需要加载TransactionManager
         @Override
         @Primary
-        @Bean(name = "defaultTransactionManager")
+        @Bean(name = TheDataSource.TRANSACTION_MANAGER_BEAN)
         public DataSourceTransactionManager transactionManager() {
             return genTransactionManager();
         }
 
         @Override
         @Primary
-        @Bean(name = "defaultSqlSessionFactory")
+        @Bean(name = TheDataSource.SQL_SESSION_FACTORY_BEAN)
         public SqlSessionFactory sqlSessionFactory() throws Exception {
             return genSqlSessionFactory();
         }
@@ -82,18 +83,18 @@ public abstract class DataSource implements EmbeddedValueResolverAware {
     private String mapperPath;
 
 
-    @Bean(name = "defaultDataSource") @Primary
+    /*@Bean(name = "defaultDataSource") @Primary*/
     public abstract javax.sql.DataSource dataSource();/* {
         return genDataSource();
     }*/
 
     // 若你定义的是只读数据源，则不需要加载TransactionManager
-    @Bean(name = "defaultTransactionManager") @Primary
+    /*@Bean(name = "defaultTransactionManager") @Primary*/
     public abstract DataSourceTransactionManager transactionManager();/* {
         return genTransactionManager();
     }*/
 
-    @Bean(name = "defaultSqlSessionFactory") @Primary
+    /*@Bean(name = "defaultSqlSessionFactory") @Primary*/
     public abstract SqlSessionFactory sqlSessionFactory() throws Exception;/* {
         return genSqlSessionFactory();
     }*/
@@ -105,19 +106,20 @@ public abstract class DataSource implements EmbeddedValueResolverAware {
         dataSource.setUrl(url);
         dataSource.setUsername(user);
         dataSource.setPassword(password);
-//        System.out.println(this.getClass().getSimpleName() + ".DataSource >>> " + dataSource.hashCode());
         return dataSource;
     }
 
 
     protected DataSourceTransactionManager genTransactionManager() {
-        return new DataSourceTransactionManager(dataSource());
+        javax.sql.DataSource dataSource = dataSource();
+        return new DataSourceTransactionManager(dataSource);
     }
 
     protected SqlSessionFactory genSqlSessionFactory()
             throws Exception {
         final SqlSessionFactoryBean sessionFactory = new SqlSessionFactoryBean();
-        sessionFactory.setDataSource(dataSource());
+        javax.sql.DataSource dataSource = dataSource();
+        sessionFactory.setDataSource(dataSource);
         sessionFactory.setMapperLocations(new PathMatchingResourcePatternResolver()
                 .getResources(mapperPath));
 //        sessionFactory.setTypeAliasesPackage(MasterDataSourceConfig.DOMAIN_PACKAGE);
