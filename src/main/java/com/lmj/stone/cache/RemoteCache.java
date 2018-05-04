@@ -36,7 +36,11 @@ public abstract class RemoteCache {
         set(SafeEncoder.encode(key),SafeEncoder.encode(value),expire);
     }
     public String get(String key) {
-        return SafeEncoder.encode(get(SafeEncoder.encode(key)));
+        byte[] bytes = get(SafeEncoder.encode(key));
+        if (bytes != null) {
+            return SafeEncoder.encode(bytes);
+        }
+        return null;
     }
     public void del(String key) {
         del(SafeEncoder.encode(key));

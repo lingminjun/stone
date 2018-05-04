@@ -13,6 +13,7 @@ import java.util.*;
  * Time: 下午10:37
  *
  * 操作redis : https://www.jianshu.com/p/f957d8bcbdc5
+ * docker redis : https://yeasy.gitbooks.io/docker_practice/content/container/attach_exec.html
  */
 public abstract class RedisHolder {
 
@@ -29,7 +30,11 @@ public abstract class RedisHolder {
     }
 
     public String get(String key) {
-        return SafeEncoder.encode(get(SafeEncoder.encode(key)));
+        byte[] bytes = get(SafeEncoder.encode(key));
+        if (bytes != null) {
+            return SafeEncoder.encode(bytes);
+        }
+        return null;
     }
 
     public boolean del(String key) {
@@ -45,7 +50,11 @@ public abstract class RedisHolder {
     }
 
     public String hget(String key, String field) {
-        return SafeEncoder.encode(hget(SafeEncoder.encode(key), field == null ? new byte[0] : SafeEncoder.encode(field)));
+        byte[] bytes = hget(SafeEncoder.encode(key), field == null ? new byte[0] : SafeEncoder.encode(field));
+        if (bytes != null) {
+            return SafeEncoder.encode(bytes);
+        }
+        return null;
     }
 
     public boolean hsetnx(String key, String field, String value) {
@@ -84,6 +93,19 @@ public abstract class RedisHolder {
         return map;
     }
 
+    public long decrBy(String key, long integer) {
+        return decrBy(SafeEncoder.encode(key),integer);
+    }
+    public long decr(String key) {
+        return decr(SafeEncoder.encode(key));
+    }
+    public long incrBy(String key, long integer) {
+        return incrBy(SafeEncoder.encode(key),integer);
+    }
+    public long incr(String key) {
+        return incr(SafeEncoder.encode(key));
+    }
+
 
     public abstract boolean set(byte[] key, byte[] value);
     public abstract boolean setnx(byte[] key, byte[] value);
@@ -99,6 +121,12 @@ public abstract class RedisHolder {
     public abstract Map<byte[], byte[]> hgetAll(byte[] hkey);
     public abstract long ttl(byte[] key);
     public abstract boolean hsetnx(byte[] key, byte[] field, byte[] value);
+
+    public abstract long decrBy(byte[] key, long integer);
+    public abstract long decr(byte[] key);
+    public abstract long incrBy(byte[] key, long integer);
+    public abstract long incr(byte[] key);
+
 
     private static final String OK_CODE = "OK";
     private static final String OK_MULTI_CODE = "+OK";

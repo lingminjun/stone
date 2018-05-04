@@ -37,15 +37,15 @@ public abstract class JedisPoolHolder extends RedisHolder {
 
     private JedisPool jedisPool;
 
-    public JedisPoolHolder(@Value("default.redis.host") String host,
-                           @Value("default.redis.port") int port,
-                           @Value("default.redis.passWord") String passWord,
-                           @Value("default.redis.maxTotal") int maxTotal,
-                           @Value("default.redis.maxWait") long maxWait,
-                           @Value("default.redis.minIdle") int minIdle,
-                           @Value("default.redis.maxIdle") int maxIdle,
-                           @Value("default.redis.testOnBorrow") boolean testOnBorrow,
-                           @Value("default.redis.timeout") int timeout) {
+    public JedisPoolHolder(@Value("${default.redis.host}") String host,
+                           @Value("${default.redis.port}") int port,
+                           @Value("${default.redis.passWord}") String passWord,
+                           @Value("${default.redis.maxTotal}") int maxTotal,
+                           @Value("${default.redis.maxWait}") long maxWait,
+                           @Value("${default.redis.minIdle}") int minIdle,
+                           @Value("${default.redis.maxIdle}") int maxIdle,
+                           @Value("${default.redis.testOnBorrow}") boolean testOnBorrow,
+                           @Value("${default.redis.timeout}") int timeout) {
 
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         //最大连接数, 默认20个
@@ -275,6 +275,78 @@ public abstract class JedisPoolHolder extends RedisHolder {
             releaseJedis(jedis);
         }
         return false;
+    }
+
+    @Override
+    public long decrBy(byte[] key, long integer) {
+        Long result = 0l;
+        Jedis jedis = null;
+        try {
+            jedis = getJedis();
+            result = jedis.decrBy(key,integer);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis decrBy exception!", e);
+        } finally {
+            releaseJedis(jedis);
+        }
+        return result;
+    }
+
+    @Override
+    public long decr(byte[] key) {
+        Long result = 0l;
+        Jedis jedis = null;
+        try {
+            jedis = getJedis();
+            result = jedis.decr(key);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis decr exception!", e);
+        } finally {
+            releaseJedis(jedis);
+        }
+        return result;
+    }
+
+    @Override
+    public long incrBy(byte[] key, long integer) {
+        Long result = 0l;
+        Jedis jedis = null;
+        try {
+            jedis = getJedis();
+            result = jedis.incrBy(key,integer);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis incrBy exception!", e);
+        } finally {
+            releaseJedis(jedis);
+        }
+        return result;
+    }
+
+    @Override
+    public long incr(byte[] key) {
+        Long result = 0l;
+        Jedis jedis = null;
+        try {
+            jedis = getJedis();
+            result = jedis.incr(key);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis incr exception!", e);
+        } finally {
+            releaseJedis(jedis);
+        }
+        return result;
     }
 
     public void beanDestroy() {

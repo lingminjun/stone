@@ -33,15 +33,15 @@ public abstract class JedisClusterHolder extends RedisHolder {
 
     private JedisCluster jedisCluster;
 
-    public JedisClusterHolder(@Value("default.redis.cluster.hosts") String hosts,
-                              @Value("default.redis.cluster.passWord") String passWord,
-                              @Value("default.redis.cluster.maxTotal") int maxTotal,
-                              @Value("default.redis.cluster.maxWait") long maxWait,
-                              @Value("default.redis.cluster.minIdle") int minIdle,
-                              @Value("default.redis.cluster.maxIdle") int maxIdle,
-                              @Value("default.redis.cluster.testOnBorrow") boolean testOnBorrow,
-                              @Value("default.redis.cluster.timeout") int timeout,
-                              @Value("default.redis.cluster.maxRedirection") int maxRedirection) {
+    public JedisClusterHolder(@Value("${default.redis.cluster.hosts}") String hosts,
+                              @Value("${default.redis.cluster.passWord}") String passWord,
+                              @Value("${default.redis.cluster.maxTotal}") int maxTotal,
+                              @Value("${default.redis.cluster.maxWait}") long maxWait,
+                              @Value("${default.redis.cluster.minIdle}") int minIdle,
+                              @Value("${default.redis.cluster.maxIdle}") int maxIdle,
+                              @Value("${default.redis.cluster.testOnBorrow}") boolean testOnBorrow,
+                              @Value("${default.redis.cluster.timeout}") int timeout,
+                              @Value("${default.redis.cluster.maxRedirection}") int maxRedirection) {
 
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         //最大连接数, 默认20个
@@ -224,7 +224,68 @@ public abstract class JedisClusterHolder extends RedisHolder {
 
     @Override
     public boolean hsetnx(byte[] key, byte[] field, byte[] value) {
+        try {
+            return isOk(jedisCluster.hsetnx(key,field,value));
+        } catch (Throwable e) {
+            logger.warn("jedis hsetnx exception!", e);
+        }
         return false;
+    }
+
+    @Override
+    public long decrBy(byte[] key, long integer) {
+        Long result = 0l;
+        try {
+            result = jedisCluster.decrBy(key,integer);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis decrBy exception!", e);
+        }
+        return result;
+    }
+
+    @Override
+    public long decr(byte[] key) {
+        Long result = 0l;
+        try {
+            result = jedisCluster.decr(key);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis decr exception!", e);
+        }
+        return result;
+    }
+
+    @Override
+    public long incrBy(byte[] key, long integer) {
+        Long result = 0l;
+        try {
+            result = jedisCluster.incrBy(key,integer);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis incrBy exception!", e);
+        }
+        return result;
+    }
+
+    @Override
+    public long incr(byte[] key) {
+        Long result = 0l;
+        try {
+            result = jedisCluster.incr(key);
+            if (result == null) {
+                result = 0l;
+            }
+        } catch (Throwable e) {
+            logger.warn("jedis incr exception!", e);
+        }
+        return result;
     }
 
     public void beanDestroy() {
