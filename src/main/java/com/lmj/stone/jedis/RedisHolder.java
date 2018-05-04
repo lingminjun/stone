@@ -14,6 +14,26 @@ import java.util.*;
  *
  * 操作redis : https://www.jianshu.com/p/f957d8bcbdc5
  * docker redis : https://yeasy.gitbooks.io/docker_practice/content/container/attach_exec.html
+ *
+ *
+ * 查看redis进程 ps aux|grep redis
+ *
+ * docker中操作指南
+ * 先查看image
+ * $docker image ls （是否存在redis的image，可省略）
+ * $docker container ls -a
+ * $docker run --publish 6379:6379 --name default-redis -d redis
+ * $docker container ls
+ *
+ * 探测端口
+ * $telnet 127.0.0.1 6379
+ *
+ *
+ * 想进入查看可用
+ * $docker exec -it 32d58c91abdc bash
+ * $redis-cli -h 127.0.0.1 -p 6379
+ * //做一些redis的操作
+ * $shutdown
  */
 public abstract class RedisHolder {
 
