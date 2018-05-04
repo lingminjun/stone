@@ -1,9 +1,9 @@
 package com.lmj.stone.lock;
 
-import com.lmj.stone.jedis.JedisPoolHolder;
+import com.lmj.stone.jedis.RedisHolder;
 import com.lmj.stone.lang.LocalException;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 /**
  * Created with IntelliJ IDEA.
@@ -16,13 +16,13 @@ import org.springframework.stereotype.Component;
 public abstract class DistributedLock implements Lock {
 
     @Autowired(required = true) //加载默认的JedisPool
-    JedisPoolHolder jedisPoolHolder;
+    @Qualifier("lockRedis")
+    RedisHolder redisHolder;
 
     @Override
     public void lock(String key) {
         while(true){
-            long returnFlag = jedisPoolHolder.getJedis().setnx(key,"1");
-            if (returnFlag == 1){
+            if (redisHolder.setnx(key,"1")){
                 System.out.println(Thread.currentThread().getName() + " get lock....");
                 return;
             }
@@ -39,8 +39,7 @@ public abstract class DistributedLock implements Lock {
     public boolean trylock(String key, long timeOut) {
         long expired = System.currentTimeMillis() + timeOut;
         while(true){
-            long returnFlag = jedisPoolHolder.getJedis().setnx(key,"1");
-            if (returnFlag == 1){
+            if (redisHolder.setnx(key,"1")){
                 System.out.println(Thread.currentThread().getName() + " get lock....");
                 return true;
             }
@@ -60,12 +59,12 @@ public abstract class DistributedLock implements Lock {
 
     @Override
     public void unlock(String key) {
-        long flag = jedisPoolHolder.getJedis().del(key);
-        if (flag > 0){
+        redisHolder.del(key);
+//        if (flag > 0){
             System.out.println(Thread.currentThread().getName() + " release lock....");
-        }else {
-            System.out.println(Thread.currentThread().getName() + " release lock too....");
-        }
+//        }else {
+//            System.out.println(Thread.currentThread().getName() + " release lock too....");
+//        }
     }
 
 }

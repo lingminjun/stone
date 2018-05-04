@@ -1,7 +1,8 @@
 package com.lmj.stone.cache;
 
-import com.lmj.stone.jedis.JedisPoolHolder;
+import com.lmj.stone.jedis.RedisHolder;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 
 
 /**
@@ -11,29 +12,30 @@ import org.springframework.beans.factory.annotation.Autowired;
  * Date: 2018-04-11
  * Time: 上午10:01
  */
-//@Component
-public class JedisCache extends RemoteCache {
+//@Component(value = "xxxxx")
+public abstract class JedisCache extends RemoteCache {
 
     @Autowired(required = true) //加载默认的JedisPool
-    JedisPoolHolder jedisPoolHolder;
+    @Qualifier("cacheRedis")
+    RedisHolder redisHolder;
 
     @Override
     public void set(byte[] key, byte[] value) {
-        jedisPoolHolder.set(key,value);
+        redisHolder.set(key,value);
     }
 
     @Override
     public void set(byte[] key, byte[] value, int expire) {
-        jedisPoolHolder.set(key,value,expire);
+        redisHolder.set(key,value,expire);
     }
 
     @Override
     public byte[] get(byte[] key) {
-        return jedisPoolHolder.get(key);
+        return redisHolder.get(key);
     }
 
     @Override
     public void del(byte[] key) {
-        jedisPoolHolder.del(key);
+        redisHolder.del(key);
     }
 }

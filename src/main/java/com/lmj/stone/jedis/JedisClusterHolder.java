@@ -3,13 +3,9 @@ package com.lmj.stone.jedis;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import redis.clients.jedis.Jedis;
-import redis.clients.jedis.JedisPool;
-import redis.clients.jedis.JedisPoolConfig;
+import redis.clients.jedis.*;
 
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 /**
  * Created with IntelliJ IDEA.
@@ -18,34 +14,34 @@ import java.util.Set;
  * Date: 2018-04-10
  * Time: 下午11:10
  *
- <bean id="youJedisPoolHolder" class="com.lmj.stone.jedis.JedisPoolHolder" destroy-method="beanDestroy">
-    <constructor-arg name="host" value="${default.redis.host}"/>
-    <constructor-arg name="port" value="${default.redis.port}"/>
-    <constructor-arg name="passWord" value="${default.redis.password}"/>
-    <constructor-arg name="maxTotal" value="${default.redis.maxTotal}"/>
-    <constructor-arg name="maxWait" value="${default.redis.maxWait}"/>
-    <constructor-arg name="minIdle" value="${default.redis.minIdle}"/>
-    <constructor-arg name="maxIdle" value="${default.redis.maxIdle}"/>
-    <constructor-arg name="testOnBorrow" value="${default.redis.testOnBorrow}"/>
-    <constructor-arg name="timeout" value="${default.redis.timeout}"/>
+ <bean id="youJedisClusterHolder" class="com.lmj.stone.jedis.JedisClusterHolder" destroy-method="beanDestroy">
+    <constructor-arg name="hosts" value="${default.redis.cluster.hosts}"/>
+    <constructor-arg name="passWord" value="${default.redis.cluster.password}"/>
+    <constructor-arg name="maxTotal" value="${default.redis.cluster.maxTotal}"/>
+    <constructor-arg name="maxWait" value="${default.redis.cluster.maxWait}"/>
+    <constructor-arg name="minIdle" value="${default.redis.cluster.minIdle}"/>
+    <constructor-arg name="maxIdle" value="${default.redis.cluster.maxIdle}"/>
+    <constructor-arg name="testOnBorrow" value="${default.redis.cluster.testOnBorrow}"/>
+    <constructor-arg name="timeout" value="${default.redis.cluster.timeout}"/>
+    <constructor-arg name="maxRedirection" value="${default.redis.cluster.maxRedirection}"/>
  </bean>
  */
 //@Component
-public abstract class JedisPoolHolder extends RedisHolder {
+public abstract class JedisClusterHolder extends RedisHolder {
 
-    private static final Logger logger = LoggerFactory.getLogger(JedisPoolHolder.class);
+    private static final Logger logger = LoggerFactory.getLogger(JedisClusterHolder.class);
 
-    private JedisPool jedisPool;
+    private JedisCluster jedisCluster;
 
-    public JedisPoolHolder(@Value("default.redis.host") String host,
-                           @Value("default.redis.port") int port,
-                           @Value("default.redis.passWord") String passWord,
-                           @Value("default.redis.maxTotal") int maxTotal,
-                           @Value("default.redis.maxWait") long maxWait,
-                           @Value("default.redis.minIdle") int minIdle,
-                           @Value("default.redis.maxIdle") int maxIdle,
-                           @Value("default.redis.testOnBorrow") boolean testOnBorrow,
-                           @Value("default.redis.timeout") int timeout) {
+    public JedisClusterHolder(@Value("default.redis.cluster.hosts") String hosts,
+                              @Value("default.redis.cluster.passWord") String passWord,
+                              @Value("default.redis.cluster.maxTotal") int maxTotal,
+                              @Value("default.redis.cluster.maxWait") long maxWait,
+                              @Value("default.redis.cluster.minIdle") int minIdle,
+                              @Value("default.redis.cluster.maxIdle") int maxIdle,
+                              @Value("default.redis.cluster.testOnBorrow") boolean testOnBorrow,
+                              @Value("default.redis.cluster.timeout") int timeout,
+                              @Value("default.redis.cluster.maxRedirection") int maxRedirection) {
 
         JedisPoolConfig poolConfig = new JedisPoolConfig();
         //最大连接数, 默认20个
@@ -70,59 +66,55 @@ public abstract class JedisPoolHolder extends RedisHolder {
         //逐出扫描的时间间隔(毫秒) 如果为负数, 则不运行逐出线程, 默认 - 1
         poolConfig.setTimeBetweenEvictionRunsMillis(60000);
 
+        Set<HostAndPort> nodes = getJedisClusterNode(hosts);
         if (passWord != null && passWord.length() > 0) {
-            this.jedisPool = new JedisPool(poolConfig, host, port, timeout, passWord);
+            this.jedisCluster = new JedisCluster(nodes, timeout, timeout, maxRedirection, passWord, poolConfig);
         } else {
-            this.jedisPool = new JedisPool(poolConfig, host, port, timeout);
+            this.jedisCluster = new JedisCluster(nodes, timeout, maxRedirection, poolConfig);
         }
+//        jedisCluster.hgetAll()
+//        jedisCluster.hgetAll((byte[])null)
     }
 
-    protected Jedis getJedis() {
-        return jedisPool.getResource();
+    private Set<HostAndPort> getJedisClusterNode(String redisServerHosts) {
+        Set<HostAndPort> nodes = new HashSet<HostAndPort>();
+        String[] hostAndIps = redisServerHosts.split(",|;");
+        for (String hostAndIp : hostAndIps) {
+            String[] strs = hostAndIp.split(":");
+            nodes.add(new HostAndPort(strs[0], Integer.parseInt(strs[1])));
+        }
+        return nodes;
     }
 
-    protected void releaseJedis(Jedis jedis) {
-        if (null != jedis) {
-            jedis.close();
-        }
+    protected JedisCluster getJedisCluster() {
+        return jedisCluster;
     }
+
 
     public boolean set(byte[] key, byte[] value) {
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            return isOk(jedis.set(key, value));
+            return isOk(jedisCluster.set(key, value));
         } catch (Throwable e) {
             logger.warn("jedis set exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return false;
     }
 
     @Override
     public boolean setnx(byte[] key, byte[] value) {
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            return isOk(jedis.setnx(key, value));
+            return isOk(jedisCluster.setnx(key, value));
         } catch (Throwable e) {
-            logger.warn("jedis setnx exception!", e);
-        } finally {
-            releaseJedis(jedis);
+            logger.warn("jedis set exception!", e);
         }
         return false;
     }
 
     public boolean set(byte[] key, byte[] value, int seconds){
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            return isOk(jedis.setex(key, seconds, value));
+            return isOk(jedisCluster.setex(key, seconds, value));
         } catch (Throwable e) {
             logger.warn("jedis set exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return false;
     }
@@ -130,28 +122,20 @@ public abstract class JedisPoolHolder extends RedisHolder {
 
     public byte[] get(byte[] key) {
         byte[] result = null;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.get(key);
+            result = jedisCluster.get(key);
         } catch (Throwable e) {
             logger.warn("jedis get exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
 
     public boolean del(byte[] key) {
         long result = 0;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.del(key); //特例，返回0表示也ok
+            result = jedisCluster.del(key);
         } catch (Throwable e) {
             logger.warn("jedis del exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return true;
     }
@@ -159,28 +143,20 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public byte[] hget(byte[] hkey, byte[] key) {
         byte[] result = null;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.hget(hkey, key);
+            result = jedisCluster.hget(hkey,key);
         } catch (Throwable e) {
             logger.warn("jedis hget exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
 
     @Override
     public boolean hset(byte[] hkey, byte[] key, byte[] value) {
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            return isOk(jedis.hset(hkey,key,value));
+            return isOk(jedisCluster.hset(hkey, key, value));
         } catch (Throwable e) {
             logger.warn("jedis hset exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return false;
     }
@@ -188,14 +164,10 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public boolean hdel(byte[] hkey, byte[] key) {
         long result = 0;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.hdel(hkey,key); //特例，返回0表示也ok
+            result = jedisCluster.hdel(hkey,key);
         } catch (Throwable e) {
             logger.warn("jedis hdel exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return true;
     }
@@ -203,14 +175,10 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public Set<byte[]> hkeys(byte[] hkey) {
         Set<byte[]> result = null;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.hkeys(hkey);
+            result = jedisCluster.hkeys(hkey);
         } catch (Throwable e) {
             logger.warn("jedis hkeys exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
@@ -218,14 +186,13 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public List<byte[]> hvals(byte[] hkey) {
         List<byte[]> result = null;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.hvals(hkey);
+            Collection<byte[]> collection = jedisCluster.hvals(hkey);
+            if (collection != null) {
+                result = new ArrayList<byte[]>(collection);
+            }
         } catch (Throwable e) {
             logger.warn("jedis hvals exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
@@ -233,14 +200,10 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public Map<byte[], byte[]> hgetAll(byte[] hkey) {
         Map<byte[], byte[]> result = null;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.hgetAll(hkey);
+            result = jedisCluster.hgetAll(hkey);
         } catch (Throwable e) {
             logger.warn("jedis hgetAll exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
@@ -248,39 +211,26 @@ public abstract class JedisPoolHolder extends RedisHolder {
     @Override
     public long ttl(byte[] key) {
         Long result = -1l;
-        Jedis jedis = null;
         try {
-            jedis = getJedis();
-            result = jedis.ttl(key);
+            result = jedisCluster.ttl(key);
             if (result == null) {
                 result = -1l;
             }
         } catch (Throwable e) {
             logger.warn("jedis ttl exception!", e);
-        } finally {
-            releaseJedis(jedis);
         }
         return result;
     }
 
     @Override
     public boolean hsetnx(byte[] key, byte[] field, byte[] value) {
-        Jedis jedis = null;
-        try {
-            jedis = getJedis();
-            return isOk(jedis.hsetnx(key,field,value));
-        } catch (Throwable e) {
-            logger.warn("jedis hsetnx exception!", e);
-        } finally {
-            releaseJedis(jedis);
-        }
         return false;
     }
 
     public void beanDestroy() {
         try {
-            if (jedisPool != null) {
-                jedisPool.close();
+            if (jedisCluster != null) {
+                jedisCluster.close();
             }
         } catch (Throwable e) {
             logger.error("jedis pool release exception", e);
