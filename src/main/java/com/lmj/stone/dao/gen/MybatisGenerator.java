@@ -1,4 +1,4 @@
-package com.lmj.stone.gen;
+package com.lmj.stone.dao.gen;
 
 import com.lmj.stone.dao.TableDAO;
 import org.apache.ibatis.annotations.Mapper;
