@@ -720,27 +720,27 @@ public class MybatisGenerator {
         if (methods != null && methods.size() > 0) {
             content.append("    <!-- Custom sql mapper -->\n");
             for (MapperMethod mapperMethod : methods) {
-                String sql = mapperMethod.sql.trim().toLowerCase();
+                String sql = mapperMethod.sql.trim();//.toLowerCase();
 
                 //处理特殊字符
-                sql = sql.replaceAll("<\\!\\[cdata\\[\\s+<>\\s+\\]\\]>"," <> ");
-                sql = sql.replaceAll("<\\!\\[cdata\\[\\s+<=\\s+\\]\\]>"," <= ");
-                sql = sql.replaceAll("<\\!\\[cdata\\[\\s+>=\\s+\\]\\]>"," >= ");
-                sql = sql.replaceAll("<\\!\\[cdata\\[\\s+<\\s+\\]\\]>"," < ");
-                sql = sql.replaceAll("<\\!\\[cdata\\[\\s+>\\s+\\]\\]>"," > ");
+                sql = sql.replaceAll("<\\!\\[((?i)cdata)\\[\\s+<>\\s+\\]\\]>"," <> ");
+                sql = sql.replaceAll("<\\!\\[((?i)cdata)\\[\\s+<=\\s+\\]\\]>"," <= ");
+                sql = sql.replaceAll("<\\!\\[((?i)cdata)\\[\\s+>=\\s+\\]\\]>"," >= ");
+                sql = sql.replaceAll("<\\!\\[((?i)cdata)\\[\\s+<\\s+\\]\\]>"," < ");
+                sql = sql.replaceAll("<\\!\\[((?i)cdata)\\[\\s+>\\s+\\]\\]>"," > ");
 
                 sql = sql.replaceAll("<>","_@!#0#!@_");
                 sql = sql.replaceAll("<=","_@!#1#!@_");
                 sql = sql.replaceAll(">=","_@!#2#!@_");
-                sql = sql.replaceAll(" < ","_@!#3#!@_");
-                sql = sql.replaceAll(" > ","_@!#4#!@_");
+                sql = sql.replaceAll(" < ","_@!#3#!@_");//防止把sql已有脚本提出
+                sql = sql.replaceAll(" > ","_@!#4#!@_");//防止把sql已有脚本提出
 
 
-                sql = sql.replaceAll("_@!#0#!@_","<![CDATA[ <> ]]>");
-                sql = sql.replaceAll("_@!#1#!@_","<![CDATA[ <= ]]>");
-                sql = sql.replaceAll("_@!#2#!@_","<![CDATA[ >= ]]>");
-                sql = sql.replaceAll("_@!#3#!@_","<![CDATA[ < ]]>");
-                sql = sql.replaceAll("_@!#4#!@_","<![CDATA[ > ]]>");
+                sql = sql.replaceAll("_@!#0#!@_"," <![CDATA[ <> ]]> ");
+                sql = sql.replaceAll("_@!#1#!@_"," <![CDATA[ <= ]]> ");
+                sql = sql.replaceAll("_@!#2#!@_"," <![CDATA[ >= ]]> ");
+                sql = sql.replaceAll("_@!#3#!@_"," <![CDATA[ < ]]> ");
+                sql = sql.replaceAll("_@!#4#!@_"," <![CDATA[ > ]]> ");
 
                 if (sql.startsWith("insert")) {
                     content.append("    <insert id=\"" + mapperMethod.id + "\" useGeneratedKeys=\"true\" keyProperty=\"id\" >\n");
