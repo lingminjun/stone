@@ -1,8 +1,10 @@
 package com.lmj.stone.dao.gen;
 
+import com.lmj.stone.core.gen.Generator;
 import com.lmj.stone.dao.TableDAO;
 import org.apache.ibatis.annotations.Mapper;
 import com.lmj.stone.dao.SQL;
+import org.apache.ibatis.annotations.Param;
 
 import java.io.*;
 import java.lang.reflect.Method;
@@ -11,7 +13,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class MybatisGenerator {
+public class MybatisGenerator extends Generator {
     private final static HashSet<String> MYSQL_TAGS = new HashSet<String>();
     static {
         MYSQL_TAGS.add("PRIMARY");
@@ -83,44 +85,200 @@ public class MybatisGenerator {
         MYSQL_DATE_TYPE.add("YEAR");
     }
 
-    /**
-     * 生成DAO层代码
-     * @param packageName 指定包名【必填】
-     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
-     */
-    public static void gen(String packageName,  String sqlsSourcePath) {
-        gen(packageName,sqlsSourcePath,null);
+    private final static HashSet<String> MYSQL_INDEX_TYPE = new HashSet<String>();
+    static {
+        MYSQL_INDEX_TYPE.add("PRIMARY");
+        MYSQL_INDEX_TYPE.add("UNIQUE");
+        MYSQL_INDEX_TYPE.add("INDEX");
+        MYSQL_INDEX_TYPE.add("KEY");
     }
+
+
+    public static class Column {
+        String name;
+        String type;
+        String cmmt;
+
+        public String getName() {
+            return name;
+        }
+
+        public String getType() {
+            return type;
+        }
+
+        public String getCmmt() {
+            return cmmt;
+        }
+
+        public String getDefinedType() {
+            if (MYSQL_LONG_TYPE.contains(type)) {
+                return "Long";
+            } else if (MYSQL_BOOL_TYPE.contains(type)) {
+                return "Boolean";
+            } else if (MYSQL_DOUBLE_TYPE.contains(type)) {
+                return "Double";
+            } else if (MYSQL_INT_TYPE.contains(type)) {
+                return "Integer";
+            } else if (MYSQL_STRING_TYPE.contains(type)) {
+                return "String";
+            } else {
+                return "";
+            }
+        }
+
+        public String getDataType() {
+            if (MYSQL_LONG_TYPE.contains(type)) {
+                return "long";
+            } else if (MYSQL_BOOL_TYPE.contains(type)) {
+                return "boolean";
+            } else if (MYSQL_DOUBLE_TYPE.contains(type)) {
+                return "double";
+            } else if (MYSQL_INT_TYPE.contains(type)) {
+                return "int";
+            } else if (MYSQL_STRING_TYPE.contains(type)) {
+                return "String";
+            } else {
+                return "";
+            }
+        }
+    }
+
+    public static class ColumnIndex {
+        String name;
+        boolean isPrimary;
+        boolean isUnique;
+        List<Column> columns = new ArrayList<Column>();
+
+        public String getName() {
+            return name;
+        }
+
+        public boolean isPrimary() {
+            return isPrimary;
+        }
+
+        public boolean isUnique() {
+            return isUnique;
+        }
+
+        public Column[] getColumns() {
+            return columns.toArray(new Column[0]);
+        }
+
+//        public String getQueryMethodName() {
+//            StringBuilder queryMethodName = new StringBuilder("queryBy");
+//            boolean first = true;
+//            for (Column col : columns) {
+//                if (first) {first = false;}
+//                else {queryMethodName.append("And");}
+//                queryMethodName.append(toHumpString(col.name,true));
+//            }
+//            return queryMethodName.toString();
+//        }
+    }
+
+    public static class Table {
+        String name;
+        List<Column> columns = new ArrayList<Column>();
+        List<ColumnIndex> indexs = new ArrayList<ColumnIndex>();
+
+        public String getName() {
+            return name;
+        }
+
+        public Column[] getColumns() {
+            return columns.toArray(new Column[0]);
+        }
+
+        public Column[] getIndexs() {
+            return columns.toArray(new Column[0]);
+        }
+
+        //除了主键以外的索引
+        public boolean hasIndexQuery() {
+            for (ColumnIndex column : indexs) {
+                if (!column.isPrimary) { return true; }
+            }
+            return false;
+        }
+
+        public Map<String,List<Column>> allIndexQueryMethod() {
+
+            HashMap<String,List<Column>> methods = new HashMap<String, List<Column>>();
+            for (ColumnIndex column : indexs) {
+                if (column.isPrimary) { continue; }
+
+                for (int i = 0; i < column.columns.size(); i++) {
+
+                    StringBuilder queryMethodName = new StringBuilder("queryBy");
+                    boolean first = true;
+                    List<Column> cols = new ArrayList<Column>();
+                    for (int j = 0; j <= i; j++) {
+                        Column col = column.columns.get(j);
+                        cols.add(col);
+                        if (first) {first = false;}
+                        else {queryMethodName.append("And");}
+                        queryMethodName.append(toHumpString(col.name,true));
+                    }
+
+                    String methodName = queryMethodName.toString();
+                    if (!methods.containsKey(methodName)) {
+                        methods.put(methodName,cols);
+                    }
+
+                }
+            }
+
+            return methods;
+        }
+    }
+
+
+    public final String sqlsSourcePath;
+    public final String mapperPath;
+    protected final List<Table> tables;
 
     /**
      * 生成DAO层代码
      * @param packageName 指定包名【必填】
      * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
-     * @param projectDir  项目目录，可以不填
      */
-    public static void gen( String packageName,  String sqlsSourcePath, String projectDir) {
-        gen(packageName,sqlsSourcePath,projectDir,null);
+    public MybatisGenerator(String packageName, String sqlsSourcePath) {
+        this(packageName,null,sqlsSourcePath,null);
     }
 
     /**
      * 生成DAO层代码
      * @param packageName 指定包名【必填】
-     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
      * @param projectDir  项目目录，可以不填
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     */
+    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath) {
+        this(packageName,projectDir,sqlsSourcePath,null);
+    }
+
+    /**
+     * 生成DAO层代码
+     * @param packageName 指定包名【必填】
+     * @param projectDir  项目目录，可以不填
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
      * @param mapperPath  Mybatis Configuration配置文件路径:资源路径
      */
-    public static void gen( String packageName,  String sqlsSourcePath, String projectDir, String mapperPath) {
+    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath, String mapperPath) {
+        super(packageName,projectDir);
 
-        //工程目录
-        File projFile = getCurrentProjectDirFile();
-        if (projectDir == null || projectDir.length() == 0) {
-            projectDir = projFile.getAbsolutePath();
+        if (mapperPath == null || mapperPath.length() == 0) {
+            mapperPath = "mybatis-sqlmap-config.xml";
         }
 
-        if (projectDir.endsWith(File.separator)) {
-            projectDir = projectDir.substring(0,projectDir.length() - 1);
-        }
+        this.sqlsSourcePath = sqlsSourcePath;
+        this.mapperPath = mapperPath;
+        this.tables = parseSqlTables(sqlsSourcePath);//解析sqls中的tables
+    }
 
+    @Override
+    public boolean gen() {
         String[] pcks = packageName.split("\\.");
 
         String dobjDir = null;
@@ -161,12 +319,51 @@ public class MybatisGenerator {
         daoDir = srcBuilder.toString() + File.separator + "dao";
         new File(daoDir).mkdirs();
 
-        //解析sqls中的tables
-        List<Table> tables = parseSqlTables(sqlsSourcePath);
 
         for (Table table : tables) {
             genTheTable(table,packageName,dobjDir,daoDir,mapDir,confPath);
         }
+
+        return true;
+    }
+
+    /**
+     * 获取数据表结构 [拷贝]
+     * @return
+     */
+    public List<Table> getTables() {
+        return new ArrayList<Table>(tables);
+    }
+
+    /**
+     * 生成DAO层代码
+     * @param packageName 指定包名【必填】
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     */
+    public static void gen(String packageName,  String sqlsSourcePath) {
+        gen(packageName,sqlsSourcePath,null);
+    }
+
+    /**
+     * 生成DAO层代码
+     * @param packageName 指定包名【必填】
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     * @param projectDir  项目目录，可以不填
+     */
+    public static void gen( String packageName,  String sqlsSourcePath, String projectDir) {
+        gen(packageName,sqlsSourcePath,projectDir,null);
+    }
+
+    /**
+     * 生成DAO层代码
+     * @param packageName 指定包名【必填】
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     * @param projectDir  项目目录，可以不填
+     * @param mapperPath  Mybatis Configuration配置文件路径:资源路径
+     */
+    public static void gen( String packageName,  String sqlsSourcePath, String projectDir, String mapperPath) {
+        MybatisGenerator generator = new MybatisGenerator(packageName,projectDir,sqlsSourcePath,mapperPath);
+        generator.gen();
     }
 
     private static List<Table> parseSqlTables(String sqlsSourcePath) {
@@ -215,6 +412,16 @@ public class MybatisGenerator {
                 final int index = i;
                 char c = sqlsContent.charAt(i++);
                 if (flag == 0) {//匹配列名
+
+                    //区分是属性定义还是索引定义
+                    if (!isSpacingChar(c)) {
+                        int len = readTaleIndex(index, sqlsContent, table);
+                        if (len > 0) {
+                            i = index + len;
+                            continue;
+                        }
+                    }
+
                     if (dealAppendColumnName(column,c)) {
                         flag = 1;
                     }
@@ -271,6 +478,58 @@ public class MybatisGenerator {
         } else {
             return false;
         }
+    }
+
+
+    private static int readTaleIndex(int index, String sqlsContent, Table table) {
+        if (sqlsContent.length() < index + 7) {
+            return 0;
+        }
+
+        int size = sqlsContent.length();
+        String target = sqlsContent.substring(index,index + 7).toUpperCase();//最长也就PRIMARY
+        int len = 0;
+        for (String key : MYSQL_INDEX_TYPE) {
+            if (!target.startsWith(key)) {
+                continue;
+            }
+            len = key.length();
+
+            //说明是index
+            ColumnIndex colIdx = new ColumnIndex();
+            colIdx.isPrimary = key.equals("PRIMARY");
+            colIdx.isUnique = colIdx.isPrimary || key.equals("UNIQUE");
+
+            //检查属性
+            int beg = sqlsContent.indexOf('(',index+len);
+            int end = sqlsContent.indexOf(')',index+len);
+            if (beg < index+len || beg >= size || end < index+len || end >= size) {
+                return 0;
+            }
+            String colString = sqlsContent.substring(beg + 1,end);
+            String[] cols = colString.split(",");
+            for (String col : cols) {
+                col = col.trim();
+                if (col.startsWith("`") && col.endsWith("`")) {
+                    col = col.substring(1,col.length() - 1);
+                }
+
+                for (Column column : table.columns) {
+                    if (column.name.equals(col)) {
+                        colIdx.columns.add(column);
+                        break;
+                    }
+                }
+            }
+
+            if (colIdx.columns.size() > 0) {
+                len = end - index;
+                table.indexs.add(colIdx);
+            }
+
+            break;
+        }
+        return len;
     }
 
     private static boolean isLetterChar(char c) {
@@ -359,17 +618,6 @@ public class MybatisGenerator {
 
         return prefix.toString().toUpperCase().equals("COMMENT");
 
-    }
-
-    private static class Column {
-        String name;
-        String type;
-        String cmmt;
-    }
-
-    private static class Table {
-        String name;
-        List<Column> columns = new ArrayList<Column>();
     }
 
     private static class MapperMethod {
@@ -532,10 +780,24 @@ public class MybatisGenerator {
     }
 
     private static List<MapperMethod> wirteDAObject(File file, String className, String packageName, Table table) {
+
+        //注意 索引查询需要重新生成类
+        boolean hasIndexQuery = table.hasIndexQuery();
+        String daoDir = file.getParent();//父目录
+        File idxDaoFile = new File(daoDir + File.separator + "inc" + File.separator + className + "IndexQueryDAO.java");
+        if (idxDaoFile.exists()) {//先删除
+            idxDaoFile.delete();
+        }
+
+        if (hasIndexQuery) {
+            wirteIndexQueryDAObject(idxDaoFile,className,packageName,table);
+        }
+
         List<MapperMethod> methods = null;
 
         //此类全称
         String daobj = packageName + ".dao." + className + "DAO";
+        String idxDaobj = packageName + ".dao.inc." + className + "IndexQueryDAO";
 
         //如果文件本身存在，则保留文件体
         Map<String,String> imports = new HashMap<String, String>();
@@ -564,6 +826,9 @@ public class MybatisGenerator {
         String dobj = packageName + ".dobj." + className + "DO";
         imports.put(dobj,"import " + dobj + ";");
         imports.put(Mapper.class.getName(),"import " + Mapper.class.getName() + ";");
+        if (hasIndexQuery) {
+            imports.put(idxDaobj,"import " + idxDaobj + ";");
+        }
 
         StringBuilder content = new StringBuilder();
         content.append("package " + packageName + ".dao;\n\r\n\r");
@@ -583,12 +848,23 @@ public class MybatisGenerator {
         content.append(" * Table: " + table.name + "\n");
         content.append(" */\n");
 
+        //类定义
+
+//        content.append("@Mapper\n"); // 扫描方式支持，此处不需要，因为xml中会定义
+        content.append("public interface " + className + "DAO ");
+        if (hasIndexQuery) {
+            content.append("extends " + className + "IndexQueryDAO ");
+        } else {
+            content.append("extends TableDAO<" + className + "DO> ");
+        }
+
         //保留body
         if (body != null && body.length() > 0) {
+            int idx = body.indexOf("{");
+            body = body.substring(idx);
             content.append(body);
         } else {
-            content.append("@Mapper\n");
-            content.append("public interface " + className + "DAO extends TableDAO<" + className + "DO> { }");
+            content.append("{ /* Add custom methods */ }");
             content.append("\n\r\n\r");
         }
 
@@ -599,6 +875,99 @@ public class MybatisGenerator {
         }
 
         return methods;
+    }
+
+    private static void wirteIndexQueryDAObject(File file, String className, String packageName, Table table) {
+
+        File dic = file.getParentFile();
+        if (!dic.exists()) {
+            dic.mkdirs();
+        }
+
+//        String idxDaobj = packageName + ".dao.inc." + className + "IndexQueryDAO";
+
+        //如果文件本身存在，则保留文件体
+        Map<String,String> imports = new HashMap<String, String>();
+
+        imports.put(TableDAO.class.getName(),"import " + TableDAO.class.getName() + ";");
+        String dobj = packageName + ".dobj." + className + "DO";
+        imports.put(dobj,"import " + dobj + ";");
+        imports.put(Mapper.class.getName(),"import " + Mapper.class.getName() + ";");
+        imports.put(Param.class.getName(),"import " + Param.class.getName() + ";");
+        imports.put(List.class.getName(),"import " + List.class.getName() + ";");
+
+        //开始写入
+        StringBuilder content = new StringBuilder();
+        content.append("package " + packageName + ".dao.inc;\n\r\n\r");
+
+        //imports
+        Iterator<Map.Entry<String, String>> entries = imports.entrySet().iterator();
+        while (entries.hasNext()) {
+            Map.Entry<String, String> entry = entries.next();
+            content.append(entry.getValue() + "\n");
+        }
+        content.append("\n\n");
+        content.append("/**\n");
+        content.append(" * Owner: Robot\n");
+        content.append(" * Creator: lingminjun\n");
+        content.append(" * Version: 1.0.0\n");
+        content.append(" * Since: " + new Date() + "\n");
+        content.append(" * Table: " + table.name + "\n");
+        content.append(" */\n");
+
+        //类定义
+        content.append("public interface " + className + "IndexQueryDAO extends TableDAO<" + className + "DO> { \n");
+
+        Map<String,List<Column>> queryMethod = table.allIndexQueryMethod();
+        List<String> methodNames = new ArrayList<String>(queryMethod.keySet());
+        Collections.sort(methodNames);
+        for (String methodName : methodNames) {
+
+            List<Column> cols = queryMethod.get(methodName);
+
+            content.append("    /**\n");
+            content.append("     * 根据以下索引字段查询实体对象集\n");
+
+            StringBuilder params = new StringBuilder();
+            boolean first = true;
+            for (Column col : cols) {
+                String type = col.getDataType();
+                if (type == null || type.length() == 0) {
+                    continue;
+                }
+                String colName = toHumpString(col.name,false);
+                content.append("     * @param " + colName + "  " + (col.cmmt == null ? "" : col.cmmt) + "\n");
+                if (first) { first = false; }
+                else {
+                    params.append(", ");
+                }
+                params.append("@Param(\"" + colName + "\") " + type + " " + colName);
+            }
+
+            // 排序与limit
+            content.append("     * @param sortField 排序字段，传入null时表示不写入sql\n");
+            content.append("     * @param isDesc 排序为降序\n");
+            content.append("     * @param limit 排序为降序\n");
+            params.append(",@Param(\"sortField\") String sortField");
+            params.append(",@Param(\"isDesc\") boolean isDesc");
+            params.append(",@Param(\"limit\") int limit");
+
+            content.append("     * @return\n");
+            content.append("     */\n");
+            content.append("    public List<" + className + "DO> " + methodName + "(");
+            content.append(params);
+            content.append(");\n\r\n\r");
+        }
+
+        //结束
+        content.append("}\n\r\n\r");
+
+
+        try {
+            writeFile(file,content.toString());
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
     }
 
     private static void wirteMapper(File file, String className, String packageName, Table table, List<MapperMethod> methods) {
@@ -715,6 +1084,41 @@ public class MybatisGenerator {
         content.append("        </foreach>  \n");
         content.append("    </select>\n\n");
 
+        //针对索引建查询语句
+        Map<String,List<Column>> queryMethod = table.allIndexQueryMethod();
+        List<String> methodNames = new ArrayList<String>(queryMethod.keySet());
+        Collections.sort(methodNames);
+        for (String methodName : methodNames) {
+
+            List<Column> tcols = queryMethod.get(methodName);
+
+            StringBuilder queryWhere = new StringBuilder();
+            boolean first = true;
+            for (Column cl : tcols) {
+                if (first) {
+                    first = false;
+                } else {
+                    queryWhere.append(" and ");
+                }
+                queryWhere.append("`"+ cl.name +"` = #{"+ toHumpString(cl.name,false) + "}");
+            }
+            queryWhere.append("\n");
+
+
+            content.append("    <select id=\"" + methodName + "\" resultMap=\"" + resultEntity + "\">\n");
+            content.append("        select " + cols.toString() + " \n");
+            content.append("        from `" + table.name + "` \n");
+            content.append("        where ");
+            content.append(queryWhere.toString());
+            content.append("        <if test=\"sortField != null and sortField != ''\">\n");
+            content.append("            order by `${sortField}` ");//注意参数为字符替换，而不是"?"掩码
+            //MySQL中默认排序是acs(可省略)：从小到大 ; desc ：从大到小，也叫倒序排列。
+            content.append("<if test=\"isDesc\"> desc </if> \n");
+            content.append("        </if>\n");
+            content.append("        limit #{limit}\n");//发现limit可以掩码"?"
+            content.append("    </select>\n\n");
+        }
+
 
         //自定的mapper添加
         if (methods != null && methods.size() > 0) {
@@ -776,130 +1180,5 @@ public class MybatisGenerator {
         }
     }
 
-    private static String toHumpString(String string, boolean head) {
-        StringBuilder name = new StringBuilder();
-        boolean toUpper = head;
-        for (int i = 0; i < string.length(); i++) {
-            char c = string.charAt(i);
-            if (toUpper) {
-                name.append(("" + c).toUpperCase());
-                toUpper = false;
-            } else if (c == '_') {
-                toUpper = true;
-            } else {
-                name.append(c);
-            }
-        }
-        return name.toString();
-    }
 
-    private static File getCurrentProjectDirFile() {
-//        String filePath = System.getProperty("user.dir");//当前运行目录[可能是根目录]
-        //当前运行目录
-        URL url = Thread.currentThread().getContextClassLoader().getResource("");
-        String path = url.getPath();
-        File file = new File(path);
-        return file.getParentFile().getParentFile();
-    }
-
-    public static String getCurrentProjectDir() {
-//        String filePath = System.getProperty("user.dir");//当前运行目录[可能是根目录]
-        //当前运行目录
-        URL url = Thread.currentThread().getContextClassLoader().getResource("");
-        String path = url.getPath();
-        File file = new File(path);
-        return file.getParentFile().getParent();
-    }
-
-    private static  String getSqlsContent(String sqlsSourcePath) {
-        InputStream input = Thread.currentThread().getContextClassLoader().getResourceAsStream(sqlsSourcePath);
-        String content = null;
-        try {
-            content = readFile(input);
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-        return content;
-    }
-
-    private static String readFile(InputStream in) throws IOException {
-        try {
-//            System.out.println("以字节为单位读取文件内容，一次读多个字节：");
-            // 一次读多个字节
-            byte[] tempbytes = new byte[1024];
-            int byteread = 0;
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-//            ReadFromFile.showAvailableBytes(in);
-            // 读入多个字节到字节数组中，byteread为一次读入的字节数
-            while ((byteread = in.read(tempbytes)) != -1) {
-                out.write(tempbytes,0,byteread);
-//                System.out.write(tempbytes, 0, byteread);
-            }
-            return new String(out.toByteArray(), "utf-8");
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        }
-        return null;
-    }
-
-    private static String readFile(String path) throws IOException {
-        InputStream in = null;
-        try {
-//            System.out.println("以字节为单位读取文件内容，一次读多个字节：");
-            // 一次读多个字节
-            byte[] tempbytes = new byte[1024];
-            int byteread = 0;
-            in = new FileInputStream(path);
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-//            ReadFromFile.showAvailableBytes(in);
-            // 读入多个字节到字节数组中，byteread为一次读入的字节数
-            while ((byteread = in.read(tempbytes)) != -1) {
-                out.write(tempbytes,0,byteread);
-//                System.out.write(tempbytes, 0, byteread);
-            }
-            return new String(out.toByteArray(), "utf-8");
-        } catch (Exception e1) {
-            e1.printStackTrace();
-        } finally {
-            if (in != null) {
-                try {
-                    in.close();
-                } catch (IOException e1) {
-                }
-            }
-        }
-        return null;
-    }
-
-    private static boolean writeFile(File filePath, String content) throws IOException {
-        FileOutputStream out = null;
-        try {
-            out = new FileOutputStream(filePath);
-            out.write(content.getBytes("utf-8"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (out != null) {
-                out.close();
-            }
-        }
-        return true;
-    }
-
-    private static boolean writeFile(String path, String content) throws IOException {
-        FileOutputStream out = null;
-        try {
-            out = new FileOutputStream(path);
-            out.write(content.getBytes("utf-8"));
-        } catch (Exception e) {
-            e.printStackTrace();
-            return false;
-        } finally {
-            if (out != null) {
-                out.close();
-            }
-        }
-        return true;
-    }
 }
