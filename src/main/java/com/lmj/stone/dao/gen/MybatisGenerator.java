@@ -209,28 +209,61 @@ public class MybatisGenerator extends Generator {
             for (ColumnIndex column : indexs) {
                 if (column.isPrimary) { continue; }
 
-                for (int i = 0; i < column.columns.size(); i++) {
-
-                    StringBuilder queryMethodName = new StringBuilder("queryBy");
-                    boolean first = true;
-                    List<Column> cols = new ArrayList<Column>();
-                    for (int j = 0; j <= i; j++) {
-                        Column col = column.columns.get(j);
-                        cols.add(col);
-                        if (first) {first = false;}
-                        else {queryMethodName.append("And");}
-                        queryMethodName.append(toHumpString(col.name,true));
-                    }
-
-                    String methodName = queryMethodName.toString();
-                    if (!methods.containsKey(methodName)) {
-                        methods.put(methodName,cols);
-                    }
-
-                }
+                buildMethods(column.columns,"queryBy",methods);
             }
 
             return methods;
+        }
+
+        public Map<String,List<Column>> allIndexCountMethod() {
+
+            HashMap<String,List<Column>> methods = new HashMap<String, List<Column>>();
+            for (ColumnIndex column : indexs) {
+                if (column.isPrimary) { continue; }
+
+                buildMethods(column.columns,"countBy",methods);
+            }
+
+            return methods;
+        }
+
+        private static void buildMethods(List<Column> columns, String methodHead, HashMap<String,List<Column>> methods) {
+            for (int i = 0; i < columns.size(); i++) {
+
+                StringBuilder queryMethodName = new StringBuilder(methodHead);
+                boolean first = true;
+                List<Column> cols = new ArrayList<Column>();
+                for (int j = 0; j <= i; j++) {
+                    Column col = columns.get(j);
+                    cols.add(col);
+                    if (first) {first = false;}
+                    else {queryMethodName.append("And");}
+                    queryMethodName.append(toHumpString(col.name,true));
+                }
+
+                String methodName = queryMethodName.toString();
+                if (!methods.containsKey(methodName)) {
+                    methods.put(methodName,cols);
+                }
+            }
+        }
+
+        public Column getDeleteStateColumn() {
+            for (Column col : columns) {
+                if (col.name.equals("is_delete") || col.name.equals("delete")) {
+                    return col;
+                }
+            }
+            return null;
+        }
+
+        public static boolean hasDeleteStateColumn(List<Column> columns) {
+            for (Column col : columns) {
+                if (col.name.equals("is_delete") || col.name.equals("delete")) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public String getDAOClassName(String packageName) {
@@ -272,6 +305,36 @@ public class MybatisGenerator extends Generator {
         public String getSimpleCRUDServiceBeanName() {
             return toHumpString(name,true) + "CRUDService";
         }
+
+        private static String getSqlWhereFragment(List<Column> tcols, Table table) {
+            StringBuilder queryWhere = new StringBuilder();
+            boolean first = true;
+            for (Column cl : tcols) {
+                if (first) {
+                    first = false;
+                } else {
+                    queryWhere.append(" and ");
+                }
+                queryWhere.append("`"+ cl.name +"` = #{"+ toHumpString(cl.name,false) + "}");
+            }
+            //对is_delete字段处理
+            if (table != null) {
+                Column theDelete = table.getDeleteStateColumn();
+                if (!Table.hasDeleteStateColumn(tcols) && theDelete != null) {
+                    if (first) {
+                        first = false;
+                    } else {
+                        queryWhere.append(" and ");
+                    }
+                    queryWhere.append("`" + theDelete.name + "` = #{" + toHumpString(theDelete.name, false) + "}");
+                }
+            }
+
+            queryWhere.append("\n");
+
+            return queryWhere.toString();
+        }
+
 
     }
 
@@ -941,31 +1004,19 @@ public class MybatisGenerator extends Generator {
         //类定义
         content.append("public interface " + className + "IndexQueryDAO extends TableDAO<" + className + "DO> { \n");
 
-        Map<String,List<Column>> queryMethod = table.allIndexQueryMethod();
-        List<String> methodNames = new ArrayList<String>(queryMethod.keySet());
+        //查询方法
+        Map<String,List<Column>> queryMethods = table.allIndexQueryMethod();
+        List<String> methodNames = new ArrayList<String>(queryMethods.keySet());
         Collections.sort(methodNames);
         for (String methodName : methodNames) {
 
-            List<Column> cols = queryMethod.get(methodName);
+            List<Column> cols = queryMethods.get(methodName);
 
             content.append("    /**\n");
             content.append("     * 根据以下索引字段查询实体对象集\n");
 
             StringBuilder params = new StringBuilder();
-            boolean first = true;
-            for (Column col : cols) {
-                String type = col.getDataType();
-                if (type == null || type.length() == 0) {
-                    continue;
-                }
-                String colName = toHumpString(col.name,false);
-                content.append("     * @param " + colName + "  " + (col.cmmt == null ? "" : col.cmmt) + "\n");
-                if (first) { first = false; }
-                else {
-                    params.append(", ");
-                }
-                params.append("@Param(\"" + colName + "\") " + type + " " + colName);
-            }
+            buildMethodParams(cols,table,content,params);
 
             // 排序与limit
             content.append("     * @param sortField 排序字段，传入null时表示不写入sql\n");
@@ -980,7 +1031,28 @@ public class MybatisGenerator extends Generator {
             content.append("     * @return\n");
             content.append("     */\n");
             content.append("    public List<" + className + "DO> " + methodName + "(");
-            content.append(params);
+            content.append(params.toString());
+            content.append(");\n\r\n\r");
+        }
+
+        //求总数方法
+        Map<String,List<Column>> countMethods = table.allIndexCountMethod();
+        List<String> countMethodNames = new ArrayList<String>(countMethods.keySet());
+        Collections.sort(countMethodNames);
+        for (String methodName : countMethodNames) {
+
+            List<Column> cols = countMethods.get(methodName);
+
+            content.append("    /**\n");
+            content.append("     * 根据以下索引字段计算count\n");
+
+            StringBuilder params = new StringBuilder();
+            buildMethodParams(cols,table,content,params);
+
+            content.append("     * @return\n");
+            content.append("     */\n");
+            content.append("    public long " + methodName + "(");
+            content.append(params.toString());
             content.append(");\n\r\n\r");
         }
 
@@ -992,6 +1064,35 @@ public class MybatisGenerator extends Generator {
             writeFile(file,content.toString());
         } catch (IOException e) {
             e.printStackTrace();
+        }
+    }
+
+    private static void buildMethodParams(List<Column> cols,Table table, StringBuilder content, StringBuilder params) {
+        boolean first = true;
+        for (Column col : cols) {
+            String type = col.getDataType();
+            if (type == null || type.length() == 0) {
+                continue;
+            }
+            String colName = toHumpString(col.name,false);
+            content.append("     * @param " + colName + "  " + (col.cmmt == null ? "" : col.cmmt) + "\n");
+            if (first) { first = false; }
+            else {
+                params.append(", ");
+            }
+            params.append("@Param(\"" + colName + "\") " + type + " " + colName);
+        }
+
+        //判断delete字段
+        Column theDeleteColumn = table.getDeleteStateColumn();
+        if (!Table.hasDeleteStateColumn(cols) && theDeleteColumn != null) {
+            String colName = toHumpString(theDeleteColumn.name,false);
+            content.append("     * @param " + colName + "  " + (theDeleteColumn.cmmt == null ? "" : theDeleteColumn.cmmt) + "\n");
+            if (first) { first = false; }
+            else {
+                params.append(", ");
+            }
+            params.append("@Param(\"" + colName + "\") " + theDeleteColumn.getDataType() + " " + colName);
         }
     }
 
@@ -1109,38 +1210,42 @@ public class MybatisGenerator extends Generator {
         content.append("        </foreach>  \n");
         content.append("    </select>\n\n");
 
-        //针对索引建查询语句
-        Map<String,List<Column>> queryMethod = table.allIndexQueryMethod();
-        List<String> methodNames = new ArrayList<String>(queryMethod.keySet());
+        // 针对索引建查询语句
+        Map<String,List<Column>> queryMethods = table.allIndexQueryMethod();
+        List<String> methodNames = new ArrayList<String>(queryMethods.keySet());
         Collections.sort(methodNames);
         for (String methodName : methodNames) {
 
-            List<Column> tcols = queryMethod.get(methodName);
-
-            StringBuilder queryWhere = new StringBuilder();
-            boolean first = true;
-            for (Column cl : tcols) {
-                if (first) {
-                    first = false;
-                } else {
-                    queryWhere.append(" and ");
-                }
-                queryWhere.append("`"+ cl.name +"` = #{"+ toHumpString(cl.name,false) + "}");
-            }
-            queryWhere.append("\n");
-
+            List<Column> tcols = queryMethods.get(methodName);
+            String queryWhere = Table.getSqlWhereFragment(tcols,table);
 
             content.append("    <select id=\"" + methodName + "\" resultMap=\"" + resultEntity + "\">\n");
             content.append("        select " + cols.toString() + " \n");
             content.append("        from `" + table.name + "` \n");
             content.append("        where ");
-            content.append(queryWhere.toString());
+            content.append(queryWhere);
             content.append("        <if test=\"sortField != null and sortField != ''\">\n");
             content.append("            order by `${sortField}` ");//注意参数为字符替换，而不是"?"掩码
             //MySQL中默认排序是acs(可省略)：从小到大 ; desc ：从大到小，也叫倒序排列。
             content.append("<if test=\"isDesc\"> desc </if> \n");
             content.append("        </if>\n");
             content.append("        limit #{offset},#{limit}\n");//发现limit可以掩码"?"
+            content.append("    </select>\n\n");
+        }
+
+        // 针对索引求count
+        Map<String,List<Column>> countMethods = table.allIndexCountMethod();
+        List<String> countMethodNames = new ArrayList<String>(countMethods.keySet());
+        Collections.sort(countMethodNames);
+        for (String methodName : countMethodNames) {
+
+            List<Column> tcols = countMethods.get(methodName);
+            String queryWhere = Table.getSqlWhereFragment(tcols,table);
+
+            content.append("    <select id=\"" + methodName + "\" resultType=\"java.lang.Long\">\n");
+            content.append("        select count(1) from `" + table.name + "` \n");
+            content.append("        where ");
+            content.append(queryWhere);
             content.append("    </select>\n\n");
         }
 
