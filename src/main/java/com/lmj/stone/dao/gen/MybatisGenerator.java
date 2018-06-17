@@ -14,7 +14,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MybatisGenerator extends Generator {
-    private final static HashSet<String> MYSQL_TAGS = new HashSet<String>();
+    public final static HashSet<String> MYSQL_TAGS = new HashSet<String>();
     static {
         MYSQL_TAGS.add("PRIMARY");
         MYSQL_TAGS.add("KEY");
@@ -29,17 +29,17 @@ public class MybatisGenerator extends Generator {
     }
 
 
-    private final static HashSet<String> MYSQL_LONG_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_LONG_TYPE = new HashSet<String>();
     static {
         MYSQL_LONG_TYPE.add("BIGINT");
     }
 
-    private final static HashSet<String> MYSQL_BOOL_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_BOOL_TYPE = new HashSet<String>();
     static {
         MYSQL_BOOL_TYPE.add("BOOL");
     }
 
-    private final static HashSet<String> MYSQL_DOUBLE_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_DOUBLE_TYPE = new HashSet<String>();
     static {
         MYSQL_DOUBLE_TYPE.add("FLOAT");
         MYSQL_DOUBLE_TYPE.add("DOUBLE");
@@ -51,7 +51,7 @@ public class MybatisGenerator extends Generator {
         MYSQL_DOUBLE_TYPE.add("NUMERIC");
     }
 
-    private final static HashSet<String> MYSQL_INT_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_INT_TYPE = new HashSet<String>();
     static {
         MYSQL_INT_TYPE.add("TINYINT");
         MYSQL_INT_TYPE.add("BIT");
@@ -60,7 +60,7 @@ public class MybatisGenerator extends Generator {
         MYSQL_INT_TYPE.add("INTEGER");
     }
 
-    private final static HashSet<String> MYSQL_STRING_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_STRING_TYPE = new HashSet<String>();
     static {
         MYSQL_STRING_TYPE.add("CHAR");
         MYSQL_STRING_TYPE.add("VARCHAR");
@@ -76,7 +76,7 @@ public class MybatisGenerator extends Generator {
         MYSQL_STRING_TYPE.add("SET");
     }
 
-    private final static HashSet<String> MYSQL_DATE_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_DATE_TYPE = new HashSet<String>();
     static {
         MYSQL_DATE_TYPE.add("DATETIME");
         MYSQL_DATE_TYPE.add("DATE");
@@ -85,7 +85,7 @@ public class MybatisGenerator extends Generator {
         MYSQL_DATE_TYPE.add("YEAR");
     }
 
-    private final static HashSet<String> MYSQL_INDEX_TYPE = new HashSet<String>();
+    public final static HashSet<String> MYSQL_INDEX_TYPE = new HashSet<String>();
     static {
         MYSQL_INDEX_TYPE.add("PRIMARY");
         MYSQL_INDEX_TYPE.add("UNIQUE");
@@ -232,6 +232,47 @@ public class MybatisGenerator extends Generator {
 
             return methods;
         }
+
+        public String getDAOClassName(String packageName) {
+            return packageName + ".dao." + getSimpleDAOClassName();
+        }
+
+        public String getSimpleDAOClassName() {
+            return toHumpString(name,true) + "DAO";
+        }
+
+        public String getIncDAOClassName(String packageName) {
+            return packageName + ".dao.inc." + getSimpleIncDAOClassName();
+        }
+
+        public String getSimpleIncDAOClassName() {
+            return toHumpString(name,true) + "IndexQueryDAO";
+        }
+
+        public String getDObjectClassName(String packageName) {
+            return packageName + ".dobj." + getSimpleDObjectClassName();
+        }
+
+        public String getSimpleDObjectClassName() {
+            return toHumpString(name,true) + "DO";
+        }
+
+        public String getPOJOClassName(String packageName) {
+            return packageName + ".entities." + getSimplePOJOClassName();
+        }
+
+        public String getSimplePOJOClassName() {
+            return toHumpString(name,true) + "POJO";
+        }
+
+        public String getCRUDServiceBeanName(String packageName) {
+            return packageName + ".inc." + getSimpleCRUDServiceBeanName();
+        }
+
+        public String getSimpleCRUDServiceBeanName() {
+            return toHumpString(name,true) + "CRUDService";
+        }
+
     }
 
 
@@ -279,7 +320,6 @@ public class MybatisGenerator extends Generator {
 
     @Override
     public boolean gen() {
-        String[] pcks = packageName.split("\\.");
 
         String dobjDir = null;
         String daoDir = null;
@@ -287,36 +327,21 @@ public class MybatisGenerator extends Generator {
         String confPath = null;
 
         //因为考虑有些工程，并不是main/java目录，可能直接就上是java目录[暂时不去兼容]
-        StringBuilder srcBuilder = new StringBuilder(projectDir);
-        srcBuilder.append(File.separator);
-        srcBuilder.append("src");
-        srcBuilder.append(File.separator);
-        srcBuilder.append("main");
-
-        mapDir = srcBuilder.toString() + File.separator + "resources" + File.separator + "sqlmap";
+        mapDir = this.resourcesPath + File.separator + "sqlmap";
         new File(mapDir).mkdirs();
 
         //mybatis配置路径
         if (mapperPath != null && mapperPath.length() > 0) {
-            confPath = srcBuilder.toString() + File.separator + "resources" + File.separator + mapperPath;
+            confPath = this.resourcesPath + File.separator + mapperPath;
         } else {
-            confPath = srcBuilder.toString() + File.separator + "resources" + File.separator + "mybatis-sqlmap-config.xml";
+            confPath = this.resourcesPath + File.separator + "mybatis-sqlmap-config.xml";
         }
 
-        srcBuilder.append(File.separator);
-        srcBuilder.append("java");
 
         //包名
-        for (String pck : pcks) {
-            if (pck.length() > 0 && !pck.equals("/") && !pck.equals("\\")) {
-                srcBuilder.append(File.separator);
-                srcBuilder.append(pck);
-            }
-        }
-
-        dobjDir = srcBuilder.toString() + File.separator + "dobj";
+        dobjDir = this.packagePath + File.separator + "dobj";
         new File(dobjDir).mkdirs();
-        daoDir = srcBuilder.toString() + File.separator + "dao";
+        daoDir = this.packagePath + File.separator + "dao";
         new File(daoDir).mkdirs();
 
 
@@ -643,18 +668,18 @@ public class MybatisGenerator extends Generator {
         File dmapFile = new File(mapDir + File.separator + mapperFileName);
 
 
-        wirteDObject(dobjFile,name,packName,table);
-        List<MapperMethod> methods = wirteDAObject(daoFile,name,packName,table);
-        wirteMapper(dmapFile,name,packName,table, methods);
+        writeDObject(dobjFile,name,packName,table);
+        List<MapperMethod> methods = writeDAObject(daoFile,name,packName,table);
+        writeMapper(dmapFile,name,packName,table, methods);
     }
 
-    private static void wirteDObject(File file, String className, String packageName, Table table) {
+    private static void writeDObject(File file, String className, String packageName, Table table) {
         StringBuilder dobjContent = new StringBuilder();
         dobjContent.append("package " + packageName + ".dobj;\n\r\n\r");
         dobjContent.append("import java.io.Serializable;\n\r\n\r");
         dobjContent.append("/**\n");
-        dobjContent.append(" * Owner: Robot\n");
-        dobjContent.append(" * Creator: lingminjun\n");
+        dobjContent.append(" * Owner: Minjun Ling\n");
+        dobjContent.append(" * Creator: Robot\n");
         dobjContent.append(" * Version: 1.0.0\n");
         dobjContent.append(" * Since: " + new Date() + "\n");
         dobjContent.append(" * Table: " + table.name + "\n");
@@ -779,7 +804,7 @@ public class MybatisGenerator extends Generator {
         return list;
     }
 
-    private static List<MapperMethod> wirteDAObject(File file, String className, String packageName, Table table) {
+    private static List<MapperMethod> writeDAObject(File file, String className, String packageName, Table table) {
 
         //注意 索引查询需要重新生成类
         boolean hasIndexQuery = table.hasIndexQuery();
@@ -790,14 +815,14 @@ public class MybatisGenerator extends Generator {
         }
 
         if (hasIndexQuery) {
-            wirteIndexQueryDAObject(idxDaoFile,className,packageName,table);
+            writeIndexQueryDAObject(idxDaoFile,className,packageName,table);
         }
 
         List<MapperMethod> methods = null;
 
         //此类全称
-        String daobj = packageName + ".dao." + className + "DAO";
-        String idxDaobj = packageName + ".dao.inc." + className + "IndexQueryDAO";
+        String daobj = table.getDAOClassName(packageName);      //
+        String idxDaobj = table.getIncDAOClassName(packageName);//
 
         //如果文件本身存在，则保留文件体
         Map<String,String> imports = new HashMap<String, String>();
@@ -823,7 +848,7 @@ public class MybatisGenerator extends Generator {
         }
 
         imports.put(TableDAO.class.getName(),"import " + TableDAO.class.getName() + ";");
-        String dobj = packageName + ".dobj." + className + "DO";
+        String dobj = table.getDObjectClassName(packageName);   //
         imports.put(dobj,"import " + dobj + ";");
         imports.put(Mapper.class.getName(),"import " + Mapper.class.getName() + ";");
         if (hasIndexQuery) {
@@ -841,8 +866,8 @@ public class MybatisGenerator extends Generator {
         }
         content.append("\n\n");
         content.append("/**\n");
-        content.append(" * Owner: Robot\n");
-        content.append(" * Creator: lingminjun\n");
+        content.append(" * Owner: Minjun Ling\n");
+        content.append(" * Creator: Robot\n");
         content.append(" * Version: 1.0.0\n");
         content.append(" * Since: " + new Date() + "\n");
         content.append(" * Table: " + table.name + "\n");
@@ -877,20 +902,18 @@ public class MybatisGenerator extends Generator {
         return methods;
     }
 
-    private static void wirteIndexQueryDAObject(File file, String className, String packageName, Table table) {
+    private static void writeIndexQueryDAObject(File file, String className, String packageName, Table table) {
 
         File dic = file.getParentFile();
         if (!dic.exists()) {
             dic.mkdirs();
         }
 
-//        String idxDaobj = packageName + ".dao.inc." + className + "IndexQueryDAO";
-
         //如果文件本身存在，则保留文件体
         Map<String,String> imports = new HashMap<String, String>();
 
         imports.put(TableDAO.class.getName(),"import " + TableDAO.class.getName() + ";");
-        String dobj = packageName + ".dobj." + className + "DO";
+        String dobj = table.getDObjectClassName(packageName);
         imports.put(dobj,"import " + dobj + ";");
         imports.put(Mapper.class.getName(),"import " + Mapper.class.getName() + ";");
         imports.put(Param.class.getName(),"import " + Param.class.getName() + ";");
@@ -908,8 +931,8 @@ public class MybatisGenerator extends Generator {
         }
         content.append("\n\n");
         content.append("/**\n");
-        content.append(" * Owner: Robot\n");
-        content.append(" * Creator: lingminjun\n");
+        content.append(" * Owner: Minjun Ling\n");
+        content.append(" * Creator: Robot\n");
         content.append(" * Version: 1.0.0\n");
         content.append(" * Since: " + new Date() + "\n");
         content.append(" * Table: " + table.name + "\n");
@@ -947,9 +970,11 @@ public class MybatisGenerator extends Generator {
             // 排序与limit
             content.append("     * @param sortField 排序字段，传入null时表示不写入sql\n");
             content.append("     * @param isDesc 排序为降序\n");
-            content.append("     * @param limit 排序为降序\n");
+            content.append("     * @param offset 其实位置\n");
+            content.append("     * @param limit  返回条数\n");
             params.append(",@Param(\"sortField\") String sortField");
             params.append(",@Param(\"isDesc\") boolean isDesc");
+            params.append(",@Param(\"offset\") int offset");
             params.append(",@Param(\"limit\") int limit");
 
             content.append("     * @return\n");
@@ -970,10 +995,10 @@ public class MybatisGenerator extends Generator {
         }
     }
 
-    private static void wirteMapper(File file, String className, String packageName, Table table, List<MapperMethod> methods) {
+    private static void writeMapper(File file, String className, String packageName, Table table, List<MapperMethod> methods) {
 
-        String doName = packageName + ".dobj." + className + "DO";
-        String daoName = packageName + ".dao." + className + "DAO";
+        String doName = table.getDObjectClassName(packageName); //
+        String daoName = table.getDAOClassName(packageName);    //
         StringBuilder content = new StringBuilder();
         content.append("<?xml version=\"1.0\" encoding=\"UTF-8\" ?>\n" +
                 "<!DOCTYPE mapper PUBLIC \"-//mybatis.org//DTD SQL 3.0//EN\" \"http://mybatis.org/dtd/mybatis-3-mapper.dtd\" >\n" +
@@ -1115,7 +1140,7 @@ public class MybatisGenerator extends Generator {
             //MySQL中默认排序是acs(可省略)：从小到大 ; desc ：从大到小，也叫倒序排列。
             content.append("<if test=\"isDesc\"> desc </if> \n");
             content.append("        </if>\n");
-            content.append("        limit #{limit}\n");//发现limit可以掩码"?"
+            content.append("        limit #{offset},#{limit}\n");//发现limit可以掩码"?"
             content.append("    </select>\n\n");
         }
 

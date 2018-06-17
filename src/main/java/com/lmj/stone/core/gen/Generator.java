@@ -15,6 +15,9 @@ public abstract class Generator {
     public final String packageName;
     public final String projectDir;
 
+    public final String resourcesPath;
+    public final String packagePath;
+
     public Generator(String packageName) {
         this(packageName,null);
     }
@@ -31,6 +34,27 @@ public abstract class Generator {
         }
         this.packageName = packageName;
         this.projectDir = projectDir;
+
+        //包名路径
+        String[] pcks = packageName.split("\\.");
+        StringBuilder srcBuilder = new StringBuilder(projectDir);
+        srcBuilder.append(File.separator);
+        srcBuilder.append("src");
+        srcBuilder.append(File.separator);
+        srcBuilder.append("main");
+        resourcesPath = srcBuilder.toString() + File.separator + "resources";
+        new File(resourcesPath).mkdirs();
+
+        srcBuilder.append(File.separator);
+        srcBuilder.append("java");
+        for (String pck : pcks) {
+            if (pck.length() > 0 && !pck.equals("/") && !pck.equals("\\")) {
+                srcBuilder.append(File.separator);
+                srcBuilder.append(pck);
+            }
+        }
+        packagePath = srcBuilder.toString();
+        new File(packagePath).mkdirs();
     }
 
     public abstract boolean gen();
@@ -51,6 +75,17 @@ public abstract class Generator {
             }
         }
         return name.toString();
+    }
+
+    public static String toLowerHeadString(String string) {
+        if (string.length() == 0) {
+            return string;
+        } else if (string.length() == 1) {
+            return string.toLowerCase();
+        }
+        String head = string.substring(0,1);
+        String end = string.substring(1,string.length());
+        return head.toLowerCase() + end;
     }
 
     public static File getCurrentProjectDirFile() {
