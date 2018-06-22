@@ -18,7 +18,7 @@ public abstract class PageResults<T extends Serializable> {
     public long total;//总数
 
     @IDLDesc("当前页数，从1开始")
-    public int page;//
+    public int index;//
 
     @IDLDesc("一页显示条数")
     public int size;//

@@ -22,8 +22,15 @@ import java.util.*;
  * 先查看image
  * $docker image ls （是否存在redis的image，可省略）
  * $docker container ls -a
+ *
+ * 如果存在已有的container则直接启动 $docker start container_id
+ * docker start 59ae7e01cf29
+ *
+ * 如果还没有，则安装并启动一个container
  * $docker run --publish 6379:6379 --name default-redis -d redis
  * $docker container ls
+ *
+ * 终止某个container $docker stop container_id
  *
  * 探测端口
  * $telnet 127.0.0.1 6379

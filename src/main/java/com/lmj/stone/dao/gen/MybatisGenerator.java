@@ -99,6 +99,9 @@ public class MybatisGenerator extends Generator {
         String type;
         String cmmt;
 
+        String defaultValue; //defaultValue == null表示必填字段 , 默认值为NULL注意
+        boolean notNull; //虽然是两个含义，此处简单处理，只要有default时就默认可以传入空，毕竟业务接口上只能以空来做判断
+
         public String getName() {
             return name;
         }
@@ -109,6 +112,15 @@ public class MybatisGenerator extends Generator {
 
         public String getCmmt() {
             return cmmt;
+        }
+
+        public String getDefaultValue() {
+            return defaultValue;
+        }
+
+        public boolean isNotNull() {
+            return defaultValue == null;//此处简单处理,只要有default时就默认可以传入空，毕竟业务接口上只能以空来做判断
+//            return notNull;
         }
 
         public String getDefinedType() {
@@ -193,6 +205,13 @@ public class MybatisGenerator extends Generator {
 
         public Column[] getIndexs() {
             return columns.toArray(new Column[0]);
+        }
+
+        public Column getPrimaryColumn() {
+            for (ColumnIndex column : indexs) {
+                if (column.isPrimary) { return column.columns.get(0); }
+            }
+            return null;
         }
 
         //除了主键以外的索引
@@ -298,13 +317,31 @@ public class MybatisGenerator extends Generator {
             return toHumpString(name,true) + "POJO";
         }
 
+        public String getPOJOResultsClassName(String packageName) {
+            return packageName + ".entities." + getSimplePOJOResultsClassName();
+        }
+
+        public String getSimplePOJOResultsClassName() {
+            return toHumpString(name,true) + "Results";
+        }
+
         public String getCRUDServiceBeanName(String packageName) {
-            return packageName + ".inc." + getSimpleCRUDServiceBeanName();
+            return packageName + "." + getSimpleCRUDServiceBeanName();
         }
 
         public String getSimpleCRUDServiceBeanName() {
             return toHumpString(name,true) + "CRUDService";
         }
+
+        public String getSimpleCRUDServiceImplementationName() {
+            return toHumpString(name,true) + "CRUDServiceBean";
+        }
+
+        public String getCRUDServiceImplementationName(String packageName) {
+            return packageName + ".impl." + getSimpleCRUDServiceImplementationName();
+        }
+
+
 
         private static String getSqlWhereFragment(List<Column> tcols, Table table) {
             StringBuilder queryWhere = new StringBuilder();
@@ -494,8 +531,10 @@ public class MybatisGenerator extends Generator {
             StringBuilder column = new StringBuilder();
             StringBuilder type = new StringBuilder();
             StringBuilder comment = new StringBuilder();
+            StringBuilder defaultValue = null;//new StringBuilder();
             int flag = 0;//0匹配column,1匹配类型,2匹配comment
-            boolean isCmmtTag = true;
+            boolean isCmmtTag = false;
+            boolean isDefault = false;
             while (i < size) {
                 final int index = i;
                 char c = sqlsContent.charAt(i++);
@@ -523,32 +562,52 @@ public class MybatisGenerator extends Generator {
                     if (isSQLEndChar(c)) {
 
                         //添加列
-                        addColumnNodeInTable(column,type,comment,table);
+                        addColumnNodeInTable(column,type,comment,defaultValue,table);
 
                         //重置数据
                         column = new StringBuilder();
                         type = new StringBuilder();
                         comment = new StringBuilder();
+                        defaultValue = null;//new StringBuilder();
 
                         flag = 0;
                         isCmmtTag = false;
+                        isDefault = false;
 
                         //跳到下一个命令
                         if (c == ';') {
                             break;
                         }
+                    } else if (isDefault) {
+                        if (isSpacingChar(c)) {
+                            if (defaultValue.length() == 0) {
+                                continue;
+                            } else {
+                                isDefault = false;
+                            }
+                        } else {
+                            defaultValue.append(c);
+                        }
                     }
 
-                    //嵌套字符串（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
-                    if ((c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {
+                    //若首次 default value
+                    if (isDefaultTag(index,sqlsContent)) {
+                        defaultValue = new StringBuilder();
+                        isDefault = true;
+                    } else if (!isDefault && (c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {//嵌套字符串（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
                         flag++;
                         // COMMENT '
                         isCmmtTag = isCommentTag(index,sqlsContent);
                     }
                 } else {
-                    //嵌套字符 出（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
-                    if ((c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {
+                    if (isDefault) {
+                        defaultValue.append(c);
+                    } else if ((c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {//嵌套字符 出（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
                         flag--;
+
+                        if (flag <= 2) {
+                            continue;
+                        }
                     } else if (isCmmtTag){//此处最好检查下，是不是写入了默认值
                         comment.append(c);
                     }
@@ -673,15 +732,25 @@ public class MybatisGenerator extends Generator {
         return false;
     }
 
-    private static void addColumnNodeInTable(StringBuilder column, StringBuilder type, StringBuilder comment, Table table) {
+    private static void addColumnNodeInTable(StringBuilder column, StringBuilder type, StringBuilder comment,StringBuilder defaultValue, Table table) {
         String clm = column.toString();
         String typ = type.toString();
+        String deflt = null;//defaultValue.toString();
+        if (defaultValue != null) {
+            deflt = defaultValue.toString();
+            if ((deflt.startsWith("\'") && deflt.endsWith("\'")) || (deflt.startsWith("\"") && deflt.endsWith("\""))) {
+                deflt = deflt.substring(1, deflt.length() - 1);
+            } else if (deflt.equalsIgnoreCase("null")) {
+                deflt = "NULL";
+            }
+        }
 
         if (!MYSQL_TAGS.contains(clm) && !MYSQL_TAGS.contains(typ)) {
             Column cl = new Column();
             cl.name = clm;
             cl.type = typ.toUpperCase();
             cl.cmmt = comment != null ? comment.toString() : null;
+            cl.defaultValue = deflt;
             table.columns.add(cl);
         }
 
@@ -691,6 +760,26 @@ public class MybatisGenerator extends Generator {
     private static boolean isCommentTag(int idx, String sqlsContent) {
 
         // COMMENT '
+        String prefix = getBeforeWord(idx,sqlsContent);
+
+        return prefix.toUpperCase().equals("COMMENT");
+
+    }
+
+    private static boolean isDefaultTag(int idx, String sqlsContent) {
+        char c = sqlsContent.charAt(idx);
+        if (!isSpacingChar(c)) {
+            return false;
+        }
+
+        // DEFAULT '
+        String prefix = getBeforeWord(idx,sqlsContent);
+
+        return prefix.toUpperCase().equals("DEFAULT");
+
+    }
+
+    private static String getBeforeWord(int idx, String sqlsContent) {
         StringBuilder prefix = new StringBuilder();
         int j = idx - 1;
         while (j >= 0) {
@@ -703,9 +792,7 @@ public class MybatisGenerator extends Generator {
                 prefix.insert(0,cc);
             }
         }
-
-        return prefix.toString().toUpperCase().equals("COMMENT");
-
+        return prefix.toString();
     }
 
     private static class MapperMethod {
@@ -1203,7 +1290,7 @@ public class MybatisGenerator extends Generator {
         content.append("    <select id=\"queryByIds\" resultMap=\"" + resultEntity + "\">\n");
         content.append("        select " + cols.toString() + " \n");
         content.append("        from `" + table.name + "` \n");
-        content.append("        where id in \n");
+        content.append("        where id en \n");
         content.append("        <foreach collection=\"list\" item=\"theId\" index=\"index\" \n");
         content.append("             open=\"(\" close=\")\" separator=\",\"> \n");
         content.append("             #{theId}  \n");
