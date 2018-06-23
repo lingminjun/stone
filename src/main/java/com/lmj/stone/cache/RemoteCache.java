@@ -26,36 +26,36 @@ public abstract class RemoteCache {
     }
 
     //简单存储
-    public abstract void set(byte[] key, byte[] value);
-    public abstract void set(byte[] key, byte[] value, int expire/* s */);
+    public abstract boolean set(byte[] key, byte[] value);
+    public abstract boolean set(byte[] key, byte[] value, int expire/* s */);
     public abstract byte[] get(byte[] key);
-    public abstract void del(byte[] key);
+    public abstract boolean del(byte[] key);
 
-    public void set(String key, String value) {
-        set(SafeEncoder.encode(key),SafeEncoder.encode(value));
+    public boolean set(String key, String value) {
+        return set(SafeEncoder.encode(key),SafeEncoder.encode(value));
     }
-    public void set(String key, String value, int expire/* s */) {
-        set(SafeEncoder.encode(key),SafeEncoder.encode(value),expire);
+    public boolean set(String key, String value, int expire/* s */) {
+        return set(SafeEncoder.encode(key),SafeEncoder.encode(value),expire);
     }
-    public String get(String key) {
+    public final String get(String key) {
         byte[] bytes = get(SafeEncoder.encode(key));
         if (bytes != null) {
             return SafeEncoder.encode(bytes);
         }
         return null;
     }
-    public void del(String key) {
-        del(SafeEncoder.encode(key));
+    public boolean del(String key) {
+        return del(SafeEncoder.encode(key));
     }
 
-    public <T extends Serializable> void set(String key, T value) {
-        set(SafeEncoder.encode(key),SerializeUtil.serialize(value));
+    public <T extends Serializable> boolean set(String key, T value) {
+        return set(SafeEncoder.encode(key),SerializeUtil.serialize(value));
     }
-    public <T extends Serializable> void set(String key, T value, int expire/* s */) {
+    public <T extends Serializable> boolean set(String key, T value, int expire/* s */) {
         if (expire <= 0) {
-            set(SafeEncoder.encode(key),SerializeUtil.serialize(value));
+            return set(SafeEncoder.encode(key),SerializeUtil.serialize(value));
         } else {
-            set(SafeEncoder.encode(key),SerializeUtil.serialize(value),expire);
+            return set(SafeEncoder.encode(key),SerializeUtil.serialize(value),expire);
         }
     }
     public <T extends Serializable> T get(String key, Class<T> type) {
@@ -79,15 +79,15 @@ public abstract class RemoteCache {
     }
 
     //逻辑失效(expire)和物理失效(invalid)，避免缓存击穿
-    public <T extends Serializable> void set(String key, T value, int expire/* s */, int invalid /* s */) {
-        if (value == null) {return;}
+    public <T extends Serializable> boolean set(String key, T value, int expire/* s */, int invalid /* s */) {
+        if (value == null) {return false;}
         CacheItem<T> item = new CacheItem<T>(value,expire <= 0 ? 0 : (expire + ((int)(System.currentTimeMillis()/1000))),false);
-        set(key,item,invalid);
+        return set(key,item,invalid);
     }
 
-    public <T extends Serializable> void setEmpty(String key, int expire/* s */, int invalid /* s */) {
+    public <T extends Serializable> boolean setEmpty(String key, int expire/* s */, int invalid /* s */) {
         CacheItem<T> item = new CacheItem<T>(null,expire <= 0 ? 30 : (expire + ((int)(System.currentTimeMillis()/1000))),true);
-        set(key,item,invalid);
+        return set(key,item,invalid);
     }
 
     public <T extends Serializable> CacheHolder<T> access(String key, Class<T> type) {
@@ -100,14 +100,14 @@ public abstract class RemoteCache {
     }
 
     // json数据支持，采用fastjson编码和解码
-    public <T extends Object> void setJSON(String key, T value) {
-        set(SafeEncoder.encode(key), JSON.toJSONBytes(value,emptyFilters));
+    public <T extends Object> boolean setJSON(String key, T value) {
+        return set(SafeEncoder.encode(key), JSON.toJSONBytes(value,emptyFilters));
     }
-    public <T extends Object> void setJSON(String key, T value, int expire/* s */) {
+    public <T extends Object> boolean setJSON(String key, T value, int expire/* s */) {
         if (expire <= 0) {
-            set(SafeEncoder.encode(key), JSON.toJSONBytes(value,emptyFilters));
+            return set(SafeEncoder.encode(key), JSON.toJSONBytes(value,emptyFilters));
         } else {
-            set(SafeEncoder.encode(key), JSON.toJSONBytes(value, emptyFilters), expire);
+            return set(SafeEncoder.encode(key), JSON.toJSONBytes(value, emptyFilters), expire);
         }
     }
     public <T extends Object> T getJSON(String key, Class<T> type) {
@@ -133,15 +133,15 @@ public abstract class RemoteCache {
     }
 
     //逻辑失效(expire)和物理失效(invalid)，避免缓存击穿
-    public <T extends Object> void setJSON(String key, T value, int expire/* s */, int invalid /* s */) {
-        if (value == null) {return;}
+    public <T extends Object> boolean setJSON(String key, T value, int expire/* s */, int invalid /* s */) {
+        if (value == null) {return false;}
         JsonItem item = new JsonItem(value,expire <= 0 ? 0 : (expire + ((int)(System.currentTimeMillis()/1000))),false);
-        setJSON(key,item,invalid);
+        return setJSON(key,item,invalid);
     }
 
-    public <T extends Object> void setJSONEmpty(String key, int expire/* s */, int invalid /* s */) {
+    public <T extends Object> boolean setJSONEmpty(String key, int expire/* s */, int invalid /* s */) {
         JsonItem item = new JsonItem(null,expire <= 0 ? 30 : (expire + ((int)(System.currentTimeMillis()/1000))),true);
-        setJSON(key,item,invalid);
+        return setJSON(key,item,invalid);
     }
 
     public <T extends Object> CacheHolder<T> accessJSON(String key, Class<T> type) {

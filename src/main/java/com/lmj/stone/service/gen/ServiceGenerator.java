@@ -356,6 +356,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + removeMethod + "\", desc = \"删除" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", evict = true)\n");
         }
         serviceContent.append("    public boolean " + removeMethod + "(@IDLParam(name = \"id\", desc = \"对象id\", required = true) final long id");
 
@@ -392,6 +393,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + updateMethod + "\", desc = \"更新" + pojoName + "，仅更新不为空的字段\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", evict = true)\n");
         }
 
         String defineMethod = "    public boolean " + updateMethod + "(@IDLParam(name = \"id\", desc = \"更新对象的id\", required = true) final long id";
@@ -442,7 +444,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("                dobj." + paramName + " = " + paramName + ";\n");
         }
         serviceContent.append("                " + theDaoBean + ".update(dobj);\n");
-        serviceContent.append("                return null;\n");
+        serviceContent.append("                return true;\n");
         serviceContent.append("            }\n");
         serviceContent.append("        });\n");
 
@@ -460,6 +462,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + findMethod + "\", desc = \"寻找" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", async = true)\n");
         }
 
         serviceContent.append("    public " + pojoName + " " + findMethod + "(@IDLParam(name = \"id\", desc = \"对象id\", required = true) final long id");
@@ -487,25 +490,13 @@ public class ServiceGenerator extends Generator {
     private static void writeQueryMethod(String tableModelName, String groupName, String pojoName, String queryMethodName, List<MybatisGenerator.Column> columns, String theSecurity, StringBuilder serviceContent, MybatisGenerator.Table table, boolean implement) {
         String methodName = "query" + tableModelName + queryMethodName.substring(5,queryMethodName.length());//.replace("query", "query" + tableModelName);
 
-        serviceContent.append("    /**\n");
-        serviceContent.append("     * query " + pojoName + "\n");
-        serviceContent.append("     * @return \n");
-        serviceContent.append("     */\n");
-        if (!implement) {
-            serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + methodName + "\", desc = \"批量插入" + pojoName + "\", security = " + theSecurity + ")\n");
-        } else {
-            serviceContent.append("    @Override\n");
-        }
-
         String defineMethod = "    public " + table.getSimplePOJOResultsClassName() + " " + methodName + "(@IDLParam(name = \"pageIndex\", desc = \"页索引，从1开始，传入0或负数无数据返回\", required = true) final int pageIndex";
         String spacing = formatSpaceParam(defineMethod);
 
-        serviceContent.append(defineMethod);//首段写入
-        serviceContent.append(",\n");
-        serviceContent.append(spacing);
-        serviceContent.append("@IDLParam(name = \"pageSize\", desc = \"一页最大行数\", required = true) final int pageSize");
-
+        //提前处理参数
         StringBuilder methodParams = new StringBuilder();
+        StringBuilder methodParamsDef = new StringBuilder();
+        StringBuilder cacheKeyDef = new StringBuilder();
         for (MybatisGenerator.Column column : columns) {
 
             String param = toHumpString(column.getName(),false);
@@ -514,10 +505,21 @@ public class ServiceGenerator extends Generator {
             }
             methodParams.append(param);
 
-            serviceContent.append(",\n");
-            serviceContent.append(spacing);
-            serviceContent.append("@IDLParam(name = \"" + param + "\", desc = \"" + column.getCmmt() + "\", required = true) final " + column.getDataType() + " " + param);
+            methodParamsDef.append(",\n");
+            methodParamsDef.append(spacing);
+            methodParamsDef.append("@IDLParam(name = \"" + param + "\", desc = \"" + column.getCmmt() + "\", required = true) final " + column.getDataType() + " " + param);
+
+            if (cacheKeyDef.length() > 0) {
+                cacheKeyDef.append("_");
+            }
+            cacheKeyDef.append(column.getName().toUpperCase());
+            cacheKeyDef.append(":#{");
+            cacheKeyDef.append(param);
+            cacheKeyDef.append("}");
         }
+
+        //添加分页信息
+        cacheKeyDef.append("_PAGE:#{pageIndex},#{pageSize}");
 
         // 判断是否有delete参数
         boolean hasDeleted = false;
@@ -527,11 +529,35 @@ public class ServiceGenerator extends Generator {
             if (!MybatisGenerator.Table.hasDeleteStateColumn(columns) && theDelete != null) {
                 hasDeleted = true;
 
-                serviceContent.append(",\n");
-                serviceContent.append(spacing);
-                serviceContent.append("@IDLParam(name = \"isDeleted\", desc = \"是否已经被标记删除的\", required = false) final boolean isDeleted");
+                methodParamsDef.append(",\n");
+                methodParamsDef.append(spacing);
+                methodParamsDef.append("@IDLParam(name = \"isDeleted\", desc = \"是否已经被标记删除的\", required = false) final boolean isDeleted");
+
+                cacheKeyDef.append("_DEL:#{isDeleted}");
             }
         }
+
+        //开始编写函数代码
+        serviceContent.append("    /**\n");
+        serviceContent.append("     * query " + pojoName + "\n");
+        serviceContent.append("     * @return \n");
+        serviceContent.append("     */\n");
+        if (!implement) {
+            serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + methodName + "\", desc = \"批量插入" + pojoName + "\", security = " + theSecurity + ")\n");
+        } else {
+            serviceContent.append("    @Override\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true)\n");
+        }
+
+
+
+        serviceContent.append(defineMethod);//首段写入
+        serviceContent.append(",\n");
+        serviceContent.append(spacing);
+        serviceContent.append("@IDLParam(name = \"pageSize\", desc = \"一页最大行数\", required = true) final int pageSize");
+
+        //定义所有参数
+        serviceContent.append(methodParamsDef.toString());
 
         if (!implement) {
             serviceContent.append(") throws IDLException;\n\n");
@@ -592,6 +618,7 @@ public class ServiceGenerator extends Generator {
 
         StringBuilder serviceContent = new StringBuilder();
         serviceContent.append("package " + packageName + ".impl;\n\r\n\r");
+        serviceContent.append("import com.lmj.stone.cache.AutoCache;\n");
         serviceContent.append("import com.lmj.stone.service.Injects;\n");
         serviceContent.append("import com.lmj.stone.service.BlockUtil;\n");
         serviceContent.append("import org.springframework.jdbc.datasource.DataSourceTransactionManager;\n");

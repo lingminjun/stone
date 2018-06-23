@@ -89,7 +89,6 @@ public abstract class RemoteCacheAspect {
         //数据有效
         if (holder != null && !holder.isExpired) {
             System.out.println("从缓存获取有效数据 " + key);
-//            joinPoint.proceed()
             return holder.obj;
         }
 
@@ -97,9 +96,9 @@ public abstract class RemoteCacheAspect {
         int age = cacheable.age();
         int invalid = age > 0 ? age + 10 : 0;
 
-        if (cacheable.async() && holder != null) {
+        if (cacheable.async() && holder != null && holder.obj != null) {
 
-            asyncCahce(cache,key,cacheable.json(),age,invalid,joinPoint.getTarget(),annotatedElement,joinPoint.getArgs());
+            asyncCache(cache,key,cacheable.json(),age,invalid,joinPoint.getTarget(),annotatedElement,joinPoint.getArgs());
             //发起异步请求
             System.out.println("从缓存获取过期数据 " + key);
             return holder.obj;
@@ -111,12 +110,7 @@ public abstract class RemoteCacheAspect {
 
         if (result != null) {
             try {
-                if (cacheable.json()) {
-                    cache.setJSON(key, result, age, invalid);
-                } else {
-                    cache.set(key, (Serializable) result, age, invalid);
-                }
-                System.out.println("存储缓存成功 " + key);
+                cacheObject(cache,key,result,cacheable.json(),age,invalid);
             } catch (Throwable e) {
                 System.out.println("存储缓存异常 " + key);
             }
@@ -124,7 +118,7 @@ public abstract class RemoteCacheAspect {
         return result;
     }
 
-    private static void asyncCahce(final RemoteCache cache, final String key, final boolean json, final int age, final int invalid, Object bean, Method method, Object[] args) {
+    private static void asyncCache(final RemoteCache cache, final String key, final boolean json, final int age, final int invalid, Object bean, Method method, Object[] args) {
         Object[] arguments = Arrays.copyOf(args, args.length);
         final MethodInvoker invoker = new MethodInvoker();
         invoker.setTargetObject(bean);
@@ -145,18 +139,27 @@ public abstract class RemoteCacheAspect {
 
                 if (obj != null) {
                     try {
-                        if (json) {
-                            cache.setJSON(key,obj,age,invalid);
-                        } else {
-                            cache.set(key,(Serializable) obj,age,invalid);
-                        }
-                        System.out.println("异步存储缓存成功 " + key);
+                        cacheObject(cache,key,obj,json,age,invalid);
                     } catch (Throwable e) {
                         System.out.println("异步存储缓存异常 " + key);
                     }
                 }
             }
         });
+    }
+
+    private static void cacheObject(RemoteCache cache, String key, Object object, boolean json, int age, int invalid) {
+        boolean status = false;
+        if (json) {
+            status = cache.setJSON(key,object,age,invalid);
+        } else {
+            status = cache.set(key,(Serializable) object,age,invalid);
+        }
+        if (status) {
+            System.out.println("存储缓存成功 " + key);
+        } else {
+            System.out.println("存储缓存失败 " + key);
+        }
     }
 
     /**

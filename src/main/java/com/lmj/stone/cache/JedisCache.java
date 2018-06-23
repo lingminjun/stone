@@ -20,13 +20,13 @@ public abstract class JedisCache extends RemoteCache {
     RedisHolder redisHolder;
 
     @Override
-    public void set(byte[] key, byte[] value) {
-        redisHolder.set(key,value);
+    public boolean set(byte[] key, byte[] value) {
+        return redisHolder.set(key,value);
     }
 
     @Override
-    public void set(byte[] key, byte[] value, int expire) {
-        redisHolder.set(key,value,expire);
+    public boolean set(byte[] key, byte[] value, int expire) {
+        return redisHolder.set(key,value,expire);
     }
 
     @Override
@@ -35,7 +35,7 @@ public abstract class JedisCache extends RemoteCache {
     }
 
     @Override
-    public void del(byte[] key) {
-        redisHolder.del(key);
+    public boolean del(byte[] key) {
+        return redisHolder.del(key);
     }
 }
