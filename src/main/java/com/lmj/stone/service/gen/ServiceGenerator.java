@@ -462,10 +462,11 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + findMethod + "\", desc = \"寻找" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
-            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", async = true)\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", async = true, condition=\"!#{noCache}\")\n");
         }
 
         serviceContent.append("    public " + pojoName + " " + findMethod + "(@IDLParam(name = \"id\", desc = \"对象id\", required = true) final long id");
+        serviceContent.append(",@IDLParam(name = \"noCache\", desc = \"不走缓存\", required = false) final boolean noCache");
 
         if (!implement) {
             serviceContent.append(") throws IDLException;\n\n");
@@ -523,6 +524,7 @@ public class ServiceGenerator extends Generator {
 
         // 判断是否有delete参数
         boolean hasDeleted = false;
+        String delParamIn = "";
         MybatisGenerator.Column theDelete = null;
         if (table != null) {
             theDelete = table.getDeleteStateColumn();
@@ -534,6 +536,12 @@ public class ServiceGenerator extends Generator {
                 methodParamsDef.append("@IDLParam(name = \"isDeleted\", desc = \"是否已经被标记删除的\", required = false) final boolean isDeleted");
 
                 cacheKeyDef.append("_DEL:#{isDeleted}");
+
+                if (theDelete.getDataType().equals("boolean")) {
+                    delParamIn = "isDeleted";
+                } else {
+                    delParamIn = "(isDeleted ? 1 : 0)";
+                }
             }
         }
 
@@ -546,7 +554,11 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + methodName + "\", desc = \"批量插入" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
-            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true)\n");
+            if (hasDeleted) {
+                serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache} && !#{isDeleted}\")\n");
+            } else {
+                serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache}\")\n");
+            }
         }
 
 
@@ -555,6 +567,10 @@ public class ServiceGenerator extends Generator {
         serviceContent.append(",\n");
         serviceContent.append(spacing);
         serviceContent.append("@IDLParam(name = \"pageSize\", desc = \"一页最大行数\", required = true) final int pageSize");
+
+        serviceContent.append(",\n");
+        serviceContent.append(spacing);
+        serviceContent.append("@IDLParam(name = \"noCache\", desc = \"不走缓存\", required = false) final boolean noCache");
 
         //定义所有参数
         serviceContent.append(methodParamsDef.toString());
@@ -584,22 +600,14 @@ public class ServiceGenerator extends Generator {
         serviceContent.append(methodParamsString);
         if (hasDeleted) {
             serviceContent.append(",");
-            if (theDelete.getDataType().equals("boolean")) {
-                serviceContent.append("isDeleted");
-            } else {
-                serviceContent.append("(isDeleted ? 1 : 0)");
-            }
+            serviceContent.append(delParamIn);
         }
         serviceContent.append(");\n");
         serviceContent.append("        List<" + dataObj + "> list = " + theDaoBean + "." + queryMethodName + "(");
         serviceContent.append(methodParamsString);
         if (hasDeleted) {
             serviceContent.append(",");
-            if (theDelete.getDataType().equals("boolean")) {
-                serviceContent.append("isDeleted");
-            } else {
-                serviceContent.append("(isDeleted ? 1 : 0)");
-            }
+            serviceContent.append(delParamIn);
         }
         serviceContent.append(",null,false,(pageSize * (pageIndex - 1)), pageSize);\n");
         serviceContent.append("        rlt.results = new ArrayList<" + pojoName + ">();\n");

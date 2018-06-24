@@ -31,4 +31,8 @@ public @interface AutoCache {
 
     //采用缓存方式为json缓存
     boolean json() default true;
+
+    //缓存条件： 条件采用SpEL ,字符串注意加 单引号（'）避免运算错误
+    // 实现参考 org.springframework.cache.interceptor.CacheOperationExpressionEvaluator
+    String condition() default "true";
 }

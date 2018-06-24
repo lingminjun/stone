@@ -13,6 +13,9 @@ import org.springframework.aop.framework.AopProxyUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.BridgeMethodResolver;
+import org.springframework.expression.Expression;
+import org.springframework.expression.ExpressionParser;
+import org.springframework.expression.spel.standard.SpelExpressionParser;
 import org.springframework.stereotype.Component;
 import org.springframework.util.ClassUtils;
 import org.springframework.util.MethodInvoker;
@@ -55,10 +58,21 @@ public abstract class RemoteCacheAspect {
         Method annotatedElement = getSpecificmethod(joinPoint);
         List<AutoCache> annotations = getMethodAnnotations(annotatedElement, AutoCache.class);
         if (annotations.size() > 1) {
+            System.out.println("注解修饰过多！" + joinPoint.getTarget().getClass().getSimpleName() + "." + annotatedElement.getName());
             return joinPoint.proceed();
         }
 
         AutoCache cacheable = annotations.get(0);
+
+        //先判断条件
+        String condition = generateKey(joinPoint,cacheable.condition());
+        if (condition == null || condition.length() == 0) {
+            return joinPoint.proceed();
+        }
+
+        if (!evaluateCondition(condition)) {
+            return joinPoint.proceed();
+        }
 
         String key = generateKey(joinPoint,cacheable.key());
         if (key == null || key.length() == 0) {
@@ -116,6 +130,21 @@ public abstract class RemoteCacheAspect {
             }
         }
         return result;
+    }
+
+    private static boolean evaluateCondition(String condition) {
+        ExpressionParser parser=new SpelExpressionParser();
+        try {
+            Expression exp=parser.parseExpression(condition);
+            //parserExpression("'Hello World'.concat('!')");
+            Boolean v = (Boolean)exp.getValue(Boolean.class);
+            if (v != null && v.booleanValue()) {
+                return true;
+            }
+        } catch (Throwable e) {
+            e.printStackTrace();
+        }
+        return false;
     }
 
     private static void asyncCache(final RemoteCache cache, final String key, final boolean json, final int age, final int invalid, Object bean, Method method, Object[] args) {
