@@ -198,4 +198,18 @@ public abstract class Generator {
         return true;
     }
 
+    protected static String formatSpaceParam(String methodFragment) {
+        int idx = methodFragment.indexOf("(");
+        if (idx <= 0 || idx > methodFragment.length()) {
+            return "";
+        }
+
+        StringBuilder builder = new StringBuilder(" ");
+        for (int i = 0; i < idx; i++) {
+            builder.append(" ");
+        }
+
+        return builder.toString();
+    }
+
 }

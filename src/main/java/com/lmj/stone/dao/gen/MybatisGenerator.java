@@ -341,6 +341,14 @@ public class MybatisGenerator extends Generator {
             return packageName + ".impl." + getSimpleCRUDServiceImplementationName();
         }
 
+        public String getSimpleRestControllerName() {
+            return toHumpString(name,true) + "RestController";
+        }
+
+        public String getRestControllerName(String packageName) {
+            return packageName + "." + getSimpleRestControllerName();
+        }
+
 
 
         private static String getSqlWhereFragment(List<Column> tcols, Table table) {

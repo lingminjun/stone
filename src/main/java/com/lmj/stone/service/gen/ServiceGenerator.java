@@ -110,7 +110,7 @@ public class ServiceGenerator extends Generator {
             writeServiceImpl(serviceImplFile,packageName,mybatisGenerator.packageName,mybatisGenerator.sqlsSourcePath,groupName,transactionManager,exceptionClass,security,table);
         }
 
-        return false;
+        return true;
     }
 
     private static void writeEntity(File file, String packageName, MybatisGenerator.Table table) {
@@ -226,8 +226,11 @@ public class ServiceGenerator extends Generator {
         String pojoName = table.getSimplePOJOClassName();
         //所有基本的增删修查
 
-        //批量增加
+        //增加单个
         writeCreateMethod(tableModelName,groupName,pojoName,theSecurity,serviceContent,table,false);
+
+        //批量增加
+        writeBatchCreateMethod(tableModelName,groupName,pojoName,theSecurity,serviceContent,table,false);
 
         //删，单个删除
         writeDeleteMethod(tableModelName,groupName,pojoName,theSecurity,serviceContent,table,false);
@@ -282,6 +285,52 @@ public class ServiceGenerator extends Generator {
     }
 
     private static void writeCreateMethod(String tableModelName, String groupName, String pojoName, String theSecurity, StringBuilder serviceContent, MybatisGenerator.Table table, boolean implement) {
+        String param = toLowerHeadString(tableModelName);
+
+        serviceContent.append("    /**\n");
+        serviceContent.append("     * insert " + pojoName + "\n");
+        serviceContent.append("     * @return \n");
+        serviceContent.append("     */\n");
+        String addMethod = "add" + tableModelName;
+        if (!implement) {
+            serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + addMethod + "\", desc = \"插入" + pojoName + "\", security = " + theSecurity + ")\n");
+        } else {
+            serviceContent.append("    @Override\n");
+        }
+
+        String defineMethod = "    public long " + addMethod + "(@IDLParam(name = \"" + param + "\", desc = \"实体对象\", required = true) final " + pojoName + " " + param + "\n";
+        serviceContent.append(defineMethod);
+
+        if (!implement) {
+            serviceContent.append(") throws IDLException;\n\n");
+            return;
+        } else {
+            serviceContent.append(") throws IDLException {\n");
+        }
+
+        //实现代码
+        String theDaoBean = "get" + table.getSimpleDAOClassName() + "()";
+        String dataObj = table.getSimpleDObjectClassName();
+
+        serviceContent.append("        return BlockUtil.en(transactionManager, new BlockUtil.Call<Long>() {\n");
+        serviceContent.append("            @Override\n");
+        serviceContent.append("            public Long run() throws Throwable {\n");
+        serviceContent.append("                " + dataObj + " dobj = new " + dataObj + "();\n");
+        serviceContent.append("                Injects.fill(" + param + ",dobj);\n");
+        serviceContent.append("                if (" + theDaoBean + ".insert(dobj) > 0) {\n");
+        serviceContent.append("                    return (Long)dobj.id;\n");
+        serviceContent.append("                } else {\n");
+        serviceContent.append("                    return -1l;\n");
+        serviceContent.append("                }\n");
+        serviceContent.append("            }\n");
+        serviceContent.append("        });\n");
+
+
+        serviceContent.append("    }\n\n");
+    }
+
+
+    private static void writeBatchCreateMethod(String tableModelName, String groupName, String pojoName, String theSecurity, StringBuilder serviceContent, MybatisGenerator.Table table, boolean implement) {
         serviceContent.append("    /**\n");
         serviceContent.append("     * batch insert " + pojoName + "\n");
         serviceContent.append("     * @return \n");
@@ -568,12 +617,14 @@ public class ServiceGenerator extends Generator {
         serviceContent.append(spacing);
         serviceContent.append("@IDLParam(name = \"pageSize\", desc = \"一页最大行数\", required = true) final int pageSize");
 
+        //定义所有参数
+        serviceContent.append(methodParamsDef.toString());
+
+        //是否走缓存
         serviceContent.append(",\n");
         serviceContent.append(spacing);
         serviceContent.append("@IDLParam(name = \"noCache\", desc = \"不走缓存\", required = false) final boolean noCache");
 
-        //定义所有参数
-        serviceContent.append(methodParamsDef.toString());
 
         if (!implement) {
             serviceContent.append(") throws IDLException;\n\n");
@@ -680,8 +731,11 @@ public class ServiceGenerator extends Generator {
         String pojoName = table.getSimplePOJOClassName();
         //所有基本的增删修查
 
-        //批量增加
+        //增加单个
         writeCreateMethod(tableModelName, groupName, pojoName, theSecurity, serviceContent, table, true);
+
+        //批量增加
+        writeBatchCreateMethod(tableModelName, groupName, pojoName, theSecurity, serviceContent, table, true);
 
         //删，单个删除
         writeDeleteMethod(tableModelName, groupName, pojoName, theSecurity, serviceContent, table, true);
@@ -712,17 +766,4 @@ public class ServiceGenerator extends Generator {
         }
     }
 
-    private static String formatSpaceParam(String methodFragment) {
-        int idx = methodFragment.indexOf("(");
-        if (idx <= 0 || idx > methodFragment.length()) {
-            return "";
-        }
-
-        StringBuilder builder = new StringBuilder(" ");
-        for (int i = 0; i < idx; i++) {
-            builder.append(" ");
-        }
-
-        return builder.toString();
-    }
 }
