@@ -99,7 +99,7 @@ public class MybatisGenerator extends Generator {
         String type;
         String cmmt;
 
-        String defaultValue; //defaultValue == null表示必填字段 , 默认值为NULL注意
+        String defaultValue; //默认值为NULL注意
         boolean notNull; //虽然是两个含义，此处简单处理，只要有default时就默认可以传入空，毕竟业务接口上只能以空来做判断
 
         public String getName() {
@@ -119,8 +119,8 @@ public class MybatisGenerator extends Generator {
         }
 
         public boolean isNotNull() {
-            return defaultValue == null;//此处简单处理,只要有default时就默认可以传入空，毕竟业务接口上只能以空来做判断
-//            return notNull;
+//            return defaultValue == null;//此处简单处理,只要有default时就默认可以传入空，毕竟业务接口上只能以空来做判断
+            return notNull;
         }
 
         public String getDefinedType() {
@@ -499,133 +499,134 @@ public class MybatisGenerator extends Generator {
         generator.gen();
     }
 
-    private static List<Table> parseSqlTables(String sqlsSourcePath) {
-        List<Table> tables = new ArrayList<Table>();
+    private static List<MybatisGenerator.Table> parseSqlTables(String sqlsSourcePath) {
 
         //读取sql文件
         String sqlsContent = getSqlsContent(sqlsSourcePath);
-        //不能分割
-        Pattern p = Pattern.compile("create\\s+table",Pattern.CASE_INSENSITIVE);
-        Matcher m = p.matcher(sqlsContent);
-        final int size = sqlsContent.length();
 
-        while (m.find())
-        {
+        List<MybatisGenerator.Table> tables = new ArrayList<MybatisGenerator.Table>();
+
+        //采用";"分割
+        String[] sqls = sqlsContent.split(";");
+        for (String sql : sqls) {
+
+            //不能分割
+            Pattern p = Pattern.compile("create\\s+table", Pattern.CASE_INSENSITIVE);
+            Matcher m = p.matcher(sql);
+            if (!m.find()) {
+                continue;
+            }
+
             //匹配到一组
             int end = m.end();
-            int idx = sqlsContent.indexOf("(",end);//从匹配命令后开始
+            int idx = sql.indexOf("(", end);//从匹配命令后开始
             //解析表头
             StringBuilder builder = new StringBuilder();
             for (int i = idx - 1; i >= 0; i--) {
-                char c = sqlsContent.charAt(i);
+                char c = sql.charAt(i);
                 if (isLetterChar(c) || isNumberChar(c)) {
-                    builder.insert(0,c);
+                    builder.insert(0, c);
                 } else if (c == '_') {//是否采用驼峰
-                    builder.insert(0,c);
+                    builder.insert(0, c);
                 } else {
                     if (builder.length() > 0) {
                         break;
                     }
                 }
             }
-            String tableName = builder.toString();
-            System.out.println("tableName:" + tableName);
+
+            System.out.println("TableName:" + builder.toString());
+
             Table table = new Table();
-            table.name = tableName;
-            tables.add(table);
+            table.name = builder.toString();
 
-            //开始检查列属性
-            int i = idx + 1;
-            StringBuilder column = new StringBuilder();
-            StringBuilder type = new StringBuilder();
-            StringBuilder comment = new StringBuilder();
-            StringBuilder defaultValue = null;//new StringBuilder();
-            int flag = 0;//0匹配column,1匹配类型,2匹配comment
-            boolean isCmmtTag = false;
-            boolean isDefault = false;
-            while (i < size) {
-                final int index = i;
-                char c = sqlsContent.charAt(i++);
-                if (flag == 0) {//匹配列名
+            sql = sql.substring(idx + 1);
 
-                    //区分是属性定义还是索引定义
-                    if (!isSpacingChar(c)) {
-                        int len = readTaleIndex(index, sqlsContent, table);
-                        if (len > 0) {
-                            i = index + len;
-                            continue;
-                        }
-                    }
+            parseSqlTable(sql,table);
 
-                    if (dealAppendColumnName(column,c)) {
-                        flag = 1;
-                    }
-                } else if (flag == 1) {//匹配类型
-                    if (dealAppendColumnType(type,c)) {
-                        flag = 2;
-                    }
-                } else if (flag == 2) {
-
-                    //表示结束了，并没有写注解
-                    if (isSQLEndChar(c)) {
-
-                        //添加列
-                        addColumnNodeInTable(column,type,comment,defaultValue,table);
-
-                        //重置数据
-                        column = new StringBuilder();
-                        type = new StringBuilder();
-                        comment = new StringBuilder();
-                        defaultValue = null;//new StringBuilder();
-
-                        flag = 0;
-                        isCmmtTag = false;
-                        isDefault = false;
-
-                        //跳到下一个命令
-                        if (c == ';') {
-                            break;
-                        }
-                    } else if (isDefault) {
-                        if (isSpacingChar(c)) {
-                            if (defaultValue.length() == 0) {
-                                continue;
-                            } else {
-                                isDefault = false;
-                            }
-                        } else {
-                            defaultValue.append(c);
-                        }
-                    }
-
-                    //若首次 default value
-                    if (isDefaultTag(index,sqlsContent)) {
-                        defaultValue = new StringBuilder();
-                        isDefault = true;
-                    } else if (!isDefault && (c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {//嵌套字符串（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
-                        flag++;
-                        // COMMENT '
-                        isCmmtTag = isCommentTag(index,sqlsContent);
-                    }
-                } else {
-                    if (isDefault) {
-                        defaultValue.append(c);
-                    } else if ((c == '\'' || c == '\"') && sqlsContent.charAt(index-1) != '\\') {//嵌套字符 出（小bug,当注解中穿插其他单引号或者双引号，后续再改进）
-                        flag--;
-
-                        if (flag <= 2) {
-                            continue;
-                        }
-                    } else if (isCmmtTag){//此处最好检查下，是不是写入了默认值
-                        comment.append(c);
-                    }
-
-                }
+            //有效的table
+            if (table.columns.size() > 0) {
+                tables.add(table);
             }
         }
 
         return tables;
     }
+
+    private static void parseSqlTable(String sql,Table table) {
+        String[] lines = specialSplit(sql,',');
+
+        for (String line : lines) {
+            line = line.trim();
+
+            //判断是否为索引
+            String[] strs = specialSplit(line,' ');
+            if (strs.length <= 0) {
+                continue;
+            }
+
+            boolean isIndex = false;
+            String head = strs[0].toUpperCase();
+            for (String key : MYSQL_INDEX_TYPE) {
+                if (head.startsWith(key)) {
+                    isIndex = true;
+                    break;
+                }
+            }
+
+            if (!isIndex && strs.length > 2) {
+                addColumnToTable(strs,table);
+            } else if (isIndex && strs.length >= 3){
+                addIndexToTable(strs,line,table);
+            }
+
+        }
+    }
+
+    private static final String REPLACE_STRING_1 = "@~……#1";
+    private static final String REPLACE_STRING_2 = "@~……#2";
+    private static String[] specialSplit(String s, char split) {
+
+        s = s.replaceAll("\\\\\"",REPLACE_STRING_1);//先替换掉可能嵌套的字符
+        s = s.replaceAll("\\\\'",REPLACE_STRING_2);//先替换掉可能嵌套的字符
+
+        List<String> result = new ArrayList<String>();
+        StringBuilder sb = new StringBuilder();
+
+        int parenCount = 0;
+        int quotCount = 0;
+        int squotCount = 0;
+        for (int i = 0; i < s.length(); i++) { // go from 1 to length -1 to discard the surrounding ()
+            char c = s.charAt(i);
+            if (squotCount > 0 && c == '\'') { squotCount--; }
+            else if (c == '\'') { squotCount++; }
+            else if (quotCount > 0 && c == '\"') { quotCount--; }
+            else if (c == '\"') { quotCount++; }
+            else if (quotCount == 0 && squotCount == 0 && c == '(') { parenCount++; }
+            else if (quotCount == 0 && squotCount == 0 && c == ')') { parenCount--; }
+
+            if (quotCount == 0 && squotCount == 0 && parenCount == 0 && c == split) {
+                String subString = sb.toString();
+                if (subString.length() > 0) {
+                    subString = subString.replaceAll(REPLACE_STRING_1, "\\\\\"");
+                    subString = subString.replaceAll(REPLACE_STRING_2, "\\\\'");
+                    result.add(subString);
+                }
+                sb.setLength(0); // clear string builder
+            } else {
+                sb.append(c);
+            }
+        }
+
+        String subString = sb.toString();
+        if (subString.length() > 0) {
+            subString = subString.replaceAll(REPLACE_STRING_1, "\\\\\"");
+            subString = subString.replaceAll(REPLACE_STRING_2, "\\\\'");
+            result.add(subString);
+        }
+        return result.toArray(new String[0]);
+    }
+
 
     private static boolean isSpacingChar(char c) {
         if (c == '\f' || c == '\n' || c == '\r' || c == '\t' || c == ' ') {
@@ -633,58 +634,6 @@ public class MybatisGenerator extends Generator {
         } else {
             return false;
         }
-    }
-
-
-    private static int readTaleIndex(int index, String sqlsContent, Table table) {
-        if (sqlsContent.length() < index + 7) {
-            return 0;
-        }
-
-        int size = sqlsContent.length();
-        String target = sqlsContent.substring(index,index + 7).toUpperCase();//最长也就PRIMARY
-        int len = 0;
-        for (String key : MYSQL_INDEX_TYPE) {
-            if (!target.startsWith(key)) {
-                continue;
-            }
-            len = key.length();
-
-            //说明是index
-            ColumnIndex colIdx = new ColumnIndex();
-            colIdx.isPrimary = key.equals("PRIMARY");
-            colIdx.isUnique = colIdx.isPrimary || key.equals("UNIQUE");
-
-            //检查属性
-            int beg = sqlsContent.indexOf('(',index+len);
-            int end = sqlsContent.indexOf(')',index+len);
-            if (beg < index+len || beg >= size || end < index+len || end >= size) {
-                return 0;
-            }
-            String colString = sqlsContent.substring(beg + 1,end);
-            String[] cols = colString.split(",");
-            for (String col : cols) {
-                col = col.trim();
-                if (col.startsWith("`") && col.endsWith("`")) {
-                    col = col.substring(1,col.length() - 1);
-                }
-
-                for (Column column : table.columns) {
-                    if (column.name.equals(col)) {
-                        colIdx.columns.add(column);
-                        break;
-                    }
-                }
-            }
-
-            if (colIdx.columns.size() > 0) {
-                len = end - index;
-                table.indexs.add(colIdx);
-            }
-
-            break;
-        }
-        return len;
     }
 
     private static boolean isLetterChar(char c) {
@@ -703,104 +652,92 @@ public class MybatisGenerator extends Generator {
         }
     }
 
-    private static boolean isSQLEndChar(char c) {
-        if (c == ',' || c == ';') {
-            return true;
-        } else {
-            return false;
-        }
-    }
+    private static void addIndexToTable(String[] strs, String line, Table table) {
+        boolean primary = strs[0].equalsIgnoreCase("PRIMARY");
+        boolean unique = primary || strs[0].equalsIgnoreCase("UNIQUE");
 
-    private static boolean dealAppendColumnName(StringBuilder column, char c) {
-        if (isSpacingChar(c)) {
-            //进入下一个阶段
-            if (column != null && column.length() > 0) {
-                return true;
-            }
-        } else if (isLetterChar(c) || isNumberChar(c)) {
-//            if (column == null) {column = new StringBuilder();}
-            column.append(c);
-        } else if (c == '_') {//是否采用驼峰
-//            if (column == null) {column = new StringBuilder();}
-            column.append(c);
-        }
-        return false;
-    }
+        int xbegin = line.indexOf("(");
+        int xend = line.indexOf(")");
+        if (xbegin >= 0 && xbegin < line.length() && xend > 0 && xend < line.length()) {
+            String columns = line.substring(xbegin + 1,xend);
 
-    private static boolean dealAppendColumnType(StringBuilder type, char c) {
-        if (isSpacingChar(c) || c == '(') {//处理verchar(12)的可能
-            //进入下一个阶段
-            if (type != null && type.length() > 0) {
-                return true;
-            }
-        } else if (isLetterChar(c)) {//纯字符
-//            if (type == null) {type = new StringBuilder();}
-            type.append(c);
-        }
-        return false;
-    }
+            ColumnIndex columnIndex = new ColumnIndex();
+            columnIndex.isPrimary = primary;
+            columnIndex.isUnique = unique;
 
-    private static void addColumnNodeInTable(StringBuilder column, StringBuilder type, StringBuilder comment,StringBuilder defaultValue, Table table) {
-        String clm = column.toString();
-        String typ = type.toString();
-        String deflt = null;//defaultValue.toString();
-        if (defaultValue != null) {
-            deflt = defaultValue.toString();
-            if ((deflt.startsWith("\'") && deflt.endsWith("\'")) || (deflt.startsWith("\"") && deflt.endsWith("\""))) {
-                deflt = deflt.substring(1, deflt.length() - 1);
-            } else if (deflt.equalsIgnoreCase("null")) {
-                deflt = "NULL";
-            }
-        }
-
-        if (!MYSQL_TAGS.contains(clm) && !MYSQL_TAGS.contains(typ)) {
-            Column cl = new Column();
-            cl.name = clm;
-            cl.type = typ.toUpperCase();
-            cl.cmmt = comment != null ? comment.toString() : null;
-            cl.defaultValue = deflt;
-            table.columns.add(cl);
-        }
-
-        System.out.println("column:" + column.toString() + " type:" + type.toString() + " cmm:" + comment);
-    }
-
-    private static boolean isCommentTag(int idx, String sqlsContent) {
-
-        // COMMENT '
-        String prefix = getBeforeWord(idx,sqlsContent);
-
-        return prefix.toUpperCase().equals("COMMENT");
-
-    }
-
-    private static boolean isDefaultTag(int idx, String sqlsContent) {
-        char c = sqlsContent.charAt(idx);
-        if (!isSpacingChar(c)) {
-            return false;
-        }
-
-        // DEFAULT '
-        String prefix = getBeforeWord(idx,sqlsContent);
-
-        return prefix.toUpperCase().equals("DEFAULT");
-
-    }
-
-    private static String getBeforeWord(int idx, String sqlsContent) {
-        StringBuilder prefix = new StringBuilder();
-        int j = idx - 1;
-        while (j >= 0) {
-            char cc = sqlsContent.charAt(j--);
-            if (isSpacingChar(cc)) {
-                if (prefix.length() > 0) {
-                    break;
+            String ss[] = columns.trim().split(",");
+            for (String s : ss) {
+                if (s.startsWith("`") && s.endsWith("`")) {
+                    s = s.substring(1,s.length() - 1);
                 }
-            } else {
-                prefix.insert(0,cc);
+
+                for (Column col : table.columns) {
+                    if (col.name.equals(s)) {
+                        columnIndex.columns.add(col);
+                        break;
+                    }
+                }
+            }
+
+            table.indexs.add(columnIndex);
+
+            System.out.println("PRIMARY:" + primary + "; UNIQUE:" + unique + "; COLUMNS:" + columns);
+        }
+    }
+
+    private static void addColumnToTable(String[] strs, Table table) {
+
+        String column = strs[0];
+        String type = strs[1];
+
+        boolean notNull = false;
+
+        //检查default和comment
+        String defaultValue = "NULL";
+        String comment = "";
+        for (int i = 2; i < strs.length; i++) {
+            if (strs[i].equalsIgnoreCase("DEFAULT") && i + 1 < strs.length) {
+                defaultValue = strs[i + 1];
+            } else if (strs[i].equalsIgnoreCase("COMMENT") && i + 1 < strs.length) {
+                comment = strs[i + 1];
+            } else if (strs[i].equalsIgnoreCase("NOT") && i + 1 < strs.length) {
+                notNull = strs[i + 1].equalsIgnoreCase("NULL");
             }
         }
-        return prefix.toString();
+
+        // 字段处理
+        if (column.startsWith("`") && column.endsWith("`")) {
+            column = column.substring(1,column.length() - 1);
+        }
+
+        // type处理
+        int idx = type.indexOf("(");
+        if (idx > 0 && idx < type.length()) {
+            type = type.substring(0,idx);
+        }
+
+        //注释处理
+        if ((comment.startsWith("\"") && comment.endsWith("\"")) || (comment.startsWith("\'") && comment.endsWith("\'"))) {
+            comment = comment.substring(1,comment.length() - 1);
+        }
+
+        // 默认值处理
+        if (notNull && defaultValue.equalsIgnoreCase("NULL")) {//此处直接矫正，虽然理论存在不为空，但是又设置默认值情况，因为update可以设置空的情况还是有的
+            defaultValue = null;
+        } else if ((defaultValue.startsWith("\"") && defaultValue.endsWith("\"")) || (defaultValue.startsWith("\'") && defaultValue.endsWith("\'"))) {
+            defaultValue = defaultValue.substring(1,defaultValue.length() - 1);
+        }
+
+        Column col = new Column();
+        col.name = column;
+        col.type = type.toUpperCase();
+        col.cmmt = comment;
+        col.notNull = notNull;
+        col.defaultValue = defaultValue;
+
+        table.columns.add(col);
+
+        System.out.println("Column:" + column + "; Type:" + type + "; NOT_NULL:" + notNull + "; DEFAULT:" + defaultValue + "; COMMENT:" + comment);
     }
 
     private static class MapperMethod {
