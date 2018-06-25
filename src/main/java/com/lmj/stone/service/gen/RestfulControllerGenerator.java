@@ -276,7 +276,7 @@ public class RestfulControllerGenerator extends Generator {
         //实现代码
         String theServiceBean = toLowerHeadString(table.getSimpleCRUDServiceBeanName());
 
-        serviceContent.append("        return " + theServiceBean + ".findThe" + tableModelName + "(id,false);");
+        serviceContent.append("        return " + theServiceBean + ".findThe" + tableModelName + "(id,false);\n");
 
         serviceContent.append("    }\n\n");
 

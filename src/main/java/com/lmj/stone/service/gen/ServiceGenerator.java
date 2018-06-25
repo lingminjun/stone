@@ -298,7 +298,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @Override\n");
         }
 
-        String defineMethod = "    public long " + addMethod + "(@IDLParam(name = \"" + param + "\", desc = \"实体对象\", required = true) final " + pojoName + " " + param + "\n";
+        String defineMethod = "    public long " + addMethod + "(@IDLParam(name = \"" + param + "\", desc = \"实体对象\", required = true) final " + pojoName + " " + param;
         serviceContent.append(defineMethod);
 
         if (!implement) {
