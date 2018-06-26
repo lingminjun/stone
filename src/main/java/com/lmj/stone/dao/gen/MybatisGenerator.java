@@ -14,20 +14,6 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class MybatisGenerator extends Generator {
-    public final static HashSet<String> MYSQL_TAGS = new HashSet<String>();
-    static {
-        MYSQL_TAGS.add("PRIMARY");
-        MYSQL_TAGS.add("KEY");
-        MYSQL_TAGS.add("UNIQUE");
-        MYSQL_TAGS.add("USING");
-        MYSQL_TAGS.add("BTREE");
-        MYSQL_TAGS.add("INDEX");
-        MYSQL_TAGS.add("ENGINEInnoDB");
-        MYSQL_TAGS.add("IDXUSERID");
-        MYSQL_TAGS.add("UNIIDXQUERY");
-        MYSQL_TAGS.add("DEFAULT");
-    }
-
 
     public final static HashSet<String> MYSQL_LONG_TYPE = new HashSet<String>();
     static {
@@ -192,11 +178,16 @@ public class MybatisGenerator extends Generator {
 
     public static class Table {
         String name;
+        String alias;
         List<Column> columns = new ArrayList<Column>();
         List<ColumnIndex> indexs = new ArrayList<ColumnIndex>();
 
         public String getName() {
             return name;
+        }
+
+        public String getAlias() {
+            return alias;
         }
 
         public Column[] getColumns() {
@@ -290,7 +281,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimpleDAOClassName() {
-            return toHumpString(name,true) + "DAO";
+            return toHumpString(alias,true) + "DAO";
         }
 
         public String getIncDAOClassName(String packageName) {
@@ -298,7 +289,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimpleIncDAOClassName() {
-            return toHumpString(name,true) + "IndexQueryDAO";
+            return toHumpString(alias,true) + "IndexQueryDAO";
         }
 
         public String getDObjectClassName(String packageName) {
@@ -306,7 +297,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimpleDObjectClassName() {
-            return toHumpString(name,true) + "DO";
+            return toHumpString(alias,true) + "DO";
         }
 
         public String getPOJOClassName(String packageName) {
@@ -314,7 +305,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimplePOJOClassName() {
-            return toHumpString(name,true) + "POJO";
+            return toHumpString(alias,true) + "POJO";
         }
 
         public String getPOJOResultsClassName(String packageName) {
@@ -322,7 +313,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimplePOJOResultsClassName() {
-            return toHumpString(name,true) + "Results";
+            return toHumpString(alias,true) + "Results";
         }
 
         public String getCRUDServiceBeanName(String packageName) {
@@ -330,11 +321,11 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimpleCRUDServiceBeanName() {
-            return toHumpString(name,true) + "CRUDService";
+            return toHumpString(alias,true) + "CRUDService";
         }
 
         public String getSimpleCRUDServiceImplementationName() {
-            return toHumpString(name,true) + "CRUDServiceBean";
+            return toHumpString(alias,true) + "CRUDServiceBean";
         }
 
         public String getCRUDServiceImplementationName(String packageName) {
@@ -342,7 +333,7 @@ public class MybatisGenerator extends Generator {
         }
 
         public String getSimpleRestControllerName() {
-            return toHumpString(name,true) + "RestController";
+            return toHumpString(alias,true) + "RestController";
         }
 
         public String getRestControllerName(String packageName) {
@@ -386,6 +377,7 @@ public class MybatisGenerator extends Generator {
 
     public final String sqlsSourcePath;
     public final String mapperPath;
+    public final String tablePrefix;
     protected final List<Table> tables;
 
     /**
@@ -394,17 +386,17 @@ public class MybatisGenerator extends Generator {
      * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
      */
     public MybatisGenerator(String packageName, String sqlsSourcePath) {
-        this(packageName,null,sqlsSourcePath,null);
+        this(packageName,null,sqlsSourcePath,null,null);
     }
 
     /**
      * 生成DAO层代码
      * @param packageName 指定包名【必填】
-     * @param projectDir  项目目录，可以不填
      * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     * @param tablePrefix  表定义前缀,只有匹配前缀有效时起作用
      */
-    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath) {
-        this(packageName,projectDir,sqlsSourcePath,null);
+    public MybatisGenerator(String packageName, String sqlsSourcePath, String tablePrefix) {
+        this(packageName,null,sqlsSourcePath,tablePrefix,null);
     }
 
     /**
@@ -412,9 +404,21 @@ public class MybatisGenerator extends Generator {
      * @param packageName 指定包名【必填】
      * @param projectDir  项目目录，可以不填
      * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     * @param tablePrefix  表定义前缀,只有匹配前缀有效时起作用
+     */
+    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath, String tablePrefix) {
+        this(packageName,projectDir,sqlsSourcePath,tablePrefix,null);
+    }
+
+    /**
+     * 生成DAO层代码
+     * @param packageName 指定包名【必填】
+     * @param projectDir  项目目录，可以不填
+     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
+     * @param tablePrefix  表定义前缀,只有匹配前缀有效时起作用
      * @param mapperPath  Mybatis Configuration配置文件路径:资源路径
      */
-    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath, String mapperPath) {
+    public MybatisGenerator(String packageName, String projectDir,  String sqlsSourcePath, String tablePrefix,String mapperPath) {
         super(packageName,projectDir);
 
         if (mapperPath == null || mapperPath.length() == 0) {
@@ -423,7 +427,8 @@ public class MybatisGenerator extends Generator {
 
         this.sqlsSourcePath = sqlsSourcePath;
         this.mapperPath = mapperPath;
-        this.tables = parseSqlTables(sqlsSourcePath);//解析sqls中的tables
+        this.tablePrefix = tablePrefix;
+        this.tables = parseSqlTables(sqlsSourcePath,tablePrefix);//解析sqls中的tables
     }
 
     @Override
@@ -468,38 +473,8 @@ public class MybatisGenerator extends Generator {
         return new ArrayList<Table>(tables);
     }
 
-    /**
-     * 生成DAO层代码
-     * @param packageName 指定包名【必填】
-     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
-     */
-    public static void gen(String packageName,  String sqlsSourcePath) {
-        gen(packageName,sqlsSourcePath,null);
-    }
 
-    /**
-     * 生成DAO层代码
-     * @param packageName 指定包名【必填】
-     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
-     * @param projectDir  项目目录，可以不填
-     */
-    public static void gen( String packageName,  String sqlsSourcePath, String projectDir) {
-        gen(packageName,sqlsSourcePath,projectDir,null);
-    }
-
-    /**
-     * 生成DAO层代码
-     * @param packageName 指定包名【必填】
-     * @param sqlsSourcePath    sqls文件资源路径:sqls/xxx.sql【必填】
-     * @param projectDir  项目目录，可以不填
-     * @param mapperPath  Mybatis Configuration配置文件路径:资源路径
-     */
-    public static void gen( String packageName,  String sqlsSourcePath, String projectDir, String mapperPath) {
-        MybatisGenerator generator = new MybatisGenerator(packageName,projectDir,sqlsSourcePath,mapperPath);
-        generator.gen();
-    }
-
-    private static List<MybatisGenerator.Table> parseSqlTables(String sqlsSourcePath) {
+    private static List<MybatisGenerator.Table> parseSqlTables(String sqlsSourcePath, String tablePrefix) {
 
         //读取sql文件
         String sqlsContent = getSqlsContent(sqlsSourcePath);
@@ -507,7 +482,7 @@ public class MybatisGenerator extends Generator {
         List<MybatisGenerator.Table> tables = new ArrayList<MybatisGenerator.Table>();
 
         //采用";"分割
-        String[] sqls = sqlsContent.split(";");
+        String[] sqls = specialSplit(sqlsContent,';');
         for (String sql : sqls) {
 
             //不能分割
@@ -539,6 +514,11 @@ public class MybatisGenerator extends Generator {
 
             Table table = new Table();
             table.name = builder.toString();
+            if (tablePrefix != null && tablePrefix.length() > 0 && table.name.startsWith(tablePrefix)) {
+                table.alias = table.name.substring(tablePrefix.length(),table.name.length());
+            } else {
+                table.alias = table.name;
+            }
 
             sql = sql.substring(idx + 1);
 
@@ -751,11 +731,13 @@ public class MybatisGenerator extends Generator {
             return;
         }
 
-        //驼峰法
-        String name = toHumpString(table.name,true);
+        //采用别名 驼峰法
+        String name = toHumpString(table.alias,true);
 
         String dobjFileName = name + "DO.java";
         String daoFileName = name + "DAO.java";
+
+        //保留原名
         String mapperFileName = table.name.replaceAll("_","-") + "-sqlmap.xml";
 
         File dobjFile = new File(dobjDir + File.separator + dobjFileName);
@@ -1166,30 +1148,24 @@ public class MybatisGenerator extends Generator {
         }
 
         StringBuilder upBuilder = new StringBuilder();
+        boolean hasModify = false;
         for (Column cl : table.columns) {
             if (cl.name.equals("id") || cl.name.equals("create_at")) {
                 continue;
             }
 
             if (cl.name.equals("modified_at")) {
-                if (isFirst) {
-                    isFirst = false;
-                    upBuilder.append("            ");
-                } else {
-                    upBuilder.append("            ,");
-                }
-                upBuilder.append("modified_at = (unix_timestamp() * 1000) \n");
+                hasModify = true;
+                upBuilder.insert(0,"            modified_at = (unix_timestamp() * 1000) \n");
             } else {
                 upBuilder.append("        <if test=\""+ toHumpString(cl.name,false) + " != null\">\n");
-                if (isFirst) {
-                    isFirst = false;
-                    upBuilder.append("            ");
-                } else {
                     upBuilder.append("            ,");
-                }
                 upBuilder.append("`"+ cl.name +"` = #{"+ toHumpString(cl.name,false) + "}\n");
                 upBuilder.append("        </if>\n");
             }
+        }
+        if (!hasModify) {
+            upBuilder.insert(0,"            id = id \n");//为了语法不错，故意设置id作为第一项
         }
 
         //默认的sql文件编写
@@ -1308,15 +1284,15 @@ public class MybatisGenerator extends Generator {
                 sql = sql.replaceAll("_@!#3#!@_"," <![CDATA[ < ]]> ");
                 sql = sql.replaceAll("_@!#4#!@_"," <![CDATA[ > ]]> ");
 
-                if (sql.startsWith("insert")) {
+                if (sql.toLowerCase().startsWith("insert")) {
                     content.append("    <insert id=\"" + mapperMethod.id + "\" useGeneratedKeys=\"true\" keyProperty=\"id\" >\n");
                     content.append("        " + sql + "\n");
                     content.append("    </insert>\n\n");
-                } else if (sql.startsWith("update")) {
+                } else if (sql.toLowerCase().startsWith("update")) {
                     content.append("    <update id=\"" + mapperMethod.id + "\" >\n");
                     content.append("        " + sql + "\n");
                     content.append("    </update>\n\n");
-                } else if (sql.startsWith("delete")) {
+                } else if (sql.toLowerCase().startsWith("delete")) {
                     content.append("    <delete id=\"" + mapperMethod.id + "\">\n");
                     content.append("        " + sql + "\n");
                     content.append("    </delete>\n\n");

@@ -30,7 +30,20 @@ public class RestfulControllerGenerator extends Generator {
      * @param exceptionClass  异常类地址【必填】
      */
     public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass) {
-        this(packageName,apiBasePath,sqlsSourcePath,transactionManager,exceptionClass, IDLAPISecurity.UserLogin);
+        this(packageName,apiBasePath,sqlsSourcePath,transactionManager,exceptionClass,null, IDLAPISecurity.UserLogin);
+    }
+
+    /**
+     *
+     * @param packageName     项目包名【必填】
+     * @param apiBasePath     接口基本路径【必填】
+     * @param sqlsSourcePath  资源路径【必填】
+     * @param transactionManager  事务管理【必填】
+     * @param exceptionClass  异常类地址【必填】
+     * @param tablePrefix      table命名前缀【可选】
+     */
+    public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass, String tablePrefix) {
+        this(packageName,apiBasePath,sqlsSourcePath,transactionManager,exceptionClass,tablePrefix, IDLAPISecurity.UserLogin);
     }
 
     /**
@@ -42,8 +55,8 @@ public class RestfulControllerGenerator extends Generator {
      * @param exceptionClass  异常类地址【必填】
      * @param security 接口的验权等级，仅仅支持idl API时有用
      */
-    public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass, IDLAPISecurity security) {
-        this(packageName,apiBasePath,sqlsSourcePath,transactionManager,exceptionClass,null,security);
+    public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass, String tablePrefix, IDLAPISecurity security) {
+        this(packageName,apiBasePath,sqlsSourcePath,transactionManager,exceptionClass,tablePrefix,null,security);
     }
 
     /**
@@ -52,10 +65,11 @@ public class RestfulControllerGenerator extends Generator {
      * @param apiBasePath     接口基本路径【必填】
      * @param sqlsSourcePath  资源路径【必填】
      * @param exceptionClass  异常类地址【必填】
+     * @param tablePrefix      table命名前缀【可选】
      * @param projectDir      工程目录【可选】
      * @param security 接口的验权等级，仅仅支持idl API时有用
      */
-    public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass, String projectDir, IDLAPISecurity security) {
+    public RestfulControllerGenerator(String packageName, String apiBasePath, String sqlsSourcePath, String transactionManager, Class exceptionClass, String tablePrefix, String projectDir, IDLAPISecurity security) {
         super(packageName, projectDir);
 
         // doa包名处理
@@ -66,7 +80,7 @@ public class RestfulControllerGenerator extends Generator {
             servicePackage = packageName + File.separator + "service";
         }
 
-        this.serviceGenerator = new ServiceGenerator(servicePackage,sqlsSourcePath,transactionManager,exceptionClass,projectDir,security);
+        this.serviceGenerator = new ServiceGenerator(servicePackage,sqlsSourcePath,transactionManager,exceptionClass,tablePrefix,projectDir,security);
         this.tables = serviceGenerator.mybatisGenerator.getTables();
         if (!apiBasePath.startsWith("/")) {
             apiBasePath = "/" + apiBasePath;
@@ -170,8 +184,8 @@ public class RestfulControllerGenerator extends Generator {
     }
 
     private static void writeCreateMethod(String pojoName, String apiBasePath, StringBuilder serviceContent, MybatisGenerator.Table table) {
-        String tableModelName = toHumpString(table.getName(),true);
-        String path = apiBasePath + table.getName();
+        String tableModelName = toHumpString(table.getAlias(),true);
+        String path = apiBasePath + table.getAlias();
         String param = toLowerHeadString(pojoName);
 
         serviceContent.append("    /**\n");
@@ -192,8 +206,8 @@ public class RestfulControllerGenerator extends Generator {
     }
 
     private static void writeDeleteMethod(String pojoName, String apiBasePath, StringBuilder serviceContent, MybatisGenerator.Table table) {
-        String tableModelName = toHumpString(table.getName(),true);
-        String path = apiBasePath + table.getName();
+        String tableModelName = toHumpString(table.getAlias(),true);
+        String path = apiBasePath + table.getAlias();
 
         MybatisGenerator.Column column = table.getDeleteStateColumn();
         if (column == null) {
@@ -218,8 +232,8 @@ public class RestfulControllerGenerator extends Generator {
     }
 
     private static void writeUpdateMethod(String pojoName, String apiBasePath, StringBuilder serviceContent, MybatisGenerator.Table table) {
-        String tableModelName = toHumpString(table.getName(),true);
-        String path = apiBasePath + table.getName();
+        String tableModelName = toHumpString(table.getAlias(),true);
+        String path = apiBasePath + table.getAlias();
         String param = toLowerHeadString(pojoName);
 
         serviceContent.append("    /**\n");
@@ -259,8 +273,8 @@ public class RestfulControllerGenerator extends Generator {
     }
 
     private static void writeFindByIdMethod(String pojoName, String apiBasePath, StringBuilder serviceContent, MybatisGenerator.Table table) {
-        String tableModelName = toHumpString(table.getName(),true);
-        String path = apiBasePath + table.getName();
+        String tableModelName = toHumpString(table.getAlias(),true);
+        String path = apiBasePath + table.getAlias();
 
         serviceContent.append("    /**\n");
         serviceContent.append("     * find the " + tableModelName + "\n");
@@ -283,8 +297,8 @@ public class RestfulControllerGenerator extends Generator {
     }
 
     private static void writeQueryMethod(String pojoName, String apiBasePath, String queryMethodName, List<MybatisGenerator.Column> columns, StringBuilder serviceContent, MybatisGenerator.Table table) {
-        String tableModelName = toHumpString(table.getName(),true);
-        String path = apiBasePath + table.getName() + "/search";
+        String tableModelName = toHumpString(table.getAlias(),true);
+        String path = apiBasePath + table.getAlias() + "/search";
 
         String methodName = "search" + tableModelName + queryMethodName.substring(5,queryMethodName.length());//.replace("query", "query" + tableModelName);
 

@@ -32,7 +32,7 @@ public class ServiceGenerator extends Generator {
      * @param exceptionClass  异常类地址【必填】
      */
     public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass) {
-        this(packageName,sqlsSourcePath,transactionManager,exceptionClass,IDLAPISecurity.UserLogin);
+        this(packageName,sqlsSourcePath,transactionManager,exceptionClass,null,IDLAPISecurity.UserLogin);
     }
 
     /**
@@ -41,10 +41,23 @@ public class ServiceGenerator extends Generator {
      * @param sqlsSourcePath  资源路径【必填】
      * @param transactionManager  事务管理【必填】
      * @param exceptionClass  异常类地址【必填】
+     * @param tablePrefix  table命名前缀【可选】
+     */
+    public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass,String tablePrefix) {
+        this(packageName,sqlsSourcePath,transactionManager,exceptionClass,tablePrefix,IDLAPISecurity.UserLogin);
+    }
+
+    /**
+     *
+     * @param packageName     项目包名【必填】
+     * @param sqlsSourcePath  资源路径【必填】
+     * @param transactionManager  事务管理【必填】
+     * @param exceptionClass  异常类地址【必填】
+     * @param tablePrefix  table命名前缀【可选】
      * @param security 接口的验权等级，仅仅支持idl API时有用
      */
-    public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass, IDLAPISecurity security) {
-        this(packageName,sqlsSourcePath,transactionManager,exceptionClass,null,security);
+    public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass, String tablePrefix, IDLAPISecurity security) {
+        this(packageName,sqlsSourcePath,transactionManager,exceptionClass,tablePrefix,null,security);
     }
 
     /**
@@ -52,10 +65,11 @@ public class ServiceGenerator extends Generator {
      * @param packageName     项目包名【必填】
      * @param sqlsSourcePath  资源路径【必填】
      * @param exceptionClass  异常类地址【必填】
+     * @param tablePrefix      table命名前缀【可选】
      * @param projectDir      工程目录【可选】
      * @param security 接口的验权等级，仅仅支持idl API时有用
      */
-    public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass, String projectDir, IDLAPISecurity security) {
+    public ServiceGenerator(String packageName, String sqlsSourcePath, String transactionManager, Class exceptionClass, String tablePrefix, String projectDir, IDLAPISecurity security) {
         super(packageName, projectDir);
 
         // doa包名处理
@@ -65,7 +79,7 @@ public class ServiceGenerator extends Generator {
         } else {//直接放到其子目录
             doaPackage = packageName + File.separator + "db";
         }
-        this.mybatisGenerator = new MybatisGenerator(doaPackage, projectDir, sqlsSourcePath);
+        this.mybatisGenerator = new MybatisGenerator(doaPackage, projectDir, sqlsSourcePath, tablePrefix);
         this.tables = mybatisGenerator.getTables();
         this.exceptionClass = exceptionClass;
         String[] strs = sqlsSourcePath.split("/");
@@ -125,7 +139,7 @@ public class ServiceGenerator extends Generator {
         pojoContent.append(" * Since: " + new Date() + "\n");
         pojoContent.append(" * Table: " + table.getName() + "\n");
         pojoContent.append(" */\n");
-        pojoContent.append("@IDLDesc(\"" + table.getName() + "\")\n");
+        pojoContent.append("@IDLDesc(\"" + table.getName() + "对象生成\")\n");
         pojoContent.append("public final class " + table.getSimplePOJOClassName() + " implements Serializable {\n");
         pojoContent.append("    private static final long serialVersionUID = 1L;\n");
 
@@ -215,7 +229,7 @@ public class ServiceGenerator extends Generator {
         serviceContent.append(" * Table: " + table.getName() + "\n");
         serviceContent.append(" */\n");
 
-        String tableModelName = toHumpString(table.getName(),true);
+        String tableModelName = toHumpString(table.getAlias(),true);
 
         serviceContent.append("@IDLGroup(domain = \"" + groupName + "\", desc = \"" + tableModelName + "的相关操作\", codeDefine = " + exceptionClass.getSimpleName() + ".class)\n");
         serviceContent.append("public interface " + table.getSimpleCRUDServiceBeanName() + " {\n\n");
@@ -405,7 +419,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + removeMethod + "\", desc = \"删除" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
-            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", evict = true)\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getAlias().toUpperCase() + "_#{id}\", evict = true)\n");
         }
         serviceContent.append("    public boolean " + removeMethod + "(@IDLParam(name = \"id\", desc = \"对象id\", required = true) final long id");
 
@@ -442,7 +456,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + updateMethod + "\", desc = \"更新" + pojoName + "，仅更新不为空的字段\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
-            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", evict = true)\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getAlias().toUpperCase() + "_#{id}\", evict = true)\n");
         }
 
         String defineMethod = "    public boolean " + updateMethod + "(@IDLParam(name = \"id\", desc = \"更新对象的id\", required = true) final long id";
@@ -511,7 +525,7 @@ public class ServiceGenerator extends Generator {
             serviceContent.append("    @IDLAPI(module = \"" + groupName + "\",name = \"" + findMethod + "\", desc = \"寻找" + pojoName + "\", security = " + theSecurity + ")\n");
         } else {
             serviceContent.append("    @Override\n");
-            serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_#{id}\", async = true, condition=\"!#{noCache}\")\n");
+            serviceContent.append("    @AutoCache(key = \"" + table.getAlias().toUpperCase() + "_#{id}\", async = true, condition=\"!#{noCache}\")\n");
         }
 
         serviceContent.append("    public " + pojoName + " " + findMethod + "(@IDLParam(name = \"id\", desc = \"对象id\", required = true) final long id");
@@ -604,9 +618,9 @@ public class ServiceGenerator extends Generator {
         } else {
             serviceContent.append("    @Override\n");
             if (hasDeleted) {
-                serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache} && !#{isDeleted}\")\n");
+                serviceContent.append("    @AutoCache(key = \"" + table.getAlias().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache} && !#{isDeleted}\")\n");
             } else {
-                serviceContent.append("    @AutoCache(key = \"" + table.getName().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache}\")\n");
+                serviceContent.append("    @AutoCache(key = \"" + table.getAlias().toUpperCase() + "_QUERY_BY_" + cacheKeyDef.toString() + "\", async = true, condition=\"!#{noCache}\")\n");
             }
         }
 
@@ -723,7 +737,7 @@ public class ServiceGenerator extends Generator {
         serviceContent.append(";\n\n");
 
         // 实现下面一系列方法
-        String tableModelName = toHumpString(table.getName(), true);
+        String tableModelName = toHumpString(table.getAlias(), true);
 
         //获取doa接口
         writeGetDaoBean(serviceContent, table, true);
