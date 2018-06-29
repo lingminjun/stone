@@ -1,4 +1,4 @@
-package com.lmj.stone.utils;
+package com.lmj.stone.core.algorithm;
 
 import java.io.UnsupportedEncodingException;
 import java.security.MessageDigest;
@@ -25,5 +25,22 @@ public final class MD5 {
             hex.append(Integer.toHexString(b & 0xff));
         }
         return hex.toString();
+    }
+
+    public static final byte[] compute(byte[] content) {
+        try {
+            MessageDigest md5 = MessageDigest.getInstance("MD5");
+            return md5.digest(content);
+        } catch (NoSuchAlgorithmException var2) {
+            throw new RuntimeException(var2);
+        }
+    }
+
+    public static final String computeToHex(byte[] content) {
+        return HexStringUtil.toHexString(compute(content));
+    }
+
+    public static final String computeToBase64(byte[] content) {
+        return Base64Util.encodeToString(compute(content));
     }
 }

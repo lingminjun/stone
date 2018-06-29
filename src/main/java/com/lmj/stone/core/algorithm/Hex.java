@@ -1,4 +1,4 @@
-package com.lmj.stone.utils;
+package com.lmj.stone.core.algorithm;
 
 /**
  * Created by lingminjun on 17/9/4.

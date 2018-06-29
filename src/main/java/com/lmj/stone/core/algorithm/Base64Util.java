@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package com.lmj.stone.utils;
+package com.lmj.stone.core.algorithm;
 
 import java.io.UnsupportedEncodingException;
 import java.nio.charset.Charset;
@@ -47,7 +47,7 @@ public class Base64Util {
 
     /**
      * Encoder/decoder flag bit to indicate using the "URL and filename safe" variant of Base64 (see RFC 3548 section 4) where {@code -} and {@code _}
-     * are used in place of {@code +} and {@code /}.
+     * are used en place of {@code +} and {@code /}.
      */
     public static final int URL_SAFE = 8;
 
@@ -68,10 +68,10 @@ public class Base64Util {
          * Encode/decode another block of input data. this.output is provided by the caller, and must be big enough to hold all the coded data. On
          * exit, this.opwill be set to the length of the coded data.
          *
-         * @param finish true if this is the final call to process for this object. Will finalize the coder state and include any final bytes in the
+         * @param finish true if this is the final call to process for this object. Will finalize the coder state and include any final bytes en the
          *               output.
          *
-         * @return true if the input so far is good; false if some error has been detected in the input stream..
+         * @return true if the input so far is good; false if some error has been detected en the input stream..
          */
         public abstract boolean process(byte[] input, int offset, int len, boolean finish);
 
@@ -86,7 +86,7 @@ public class Base64Util {
     // --------------------------------------------------------
 
     /**
-     * Decode the Base64-encoded data in input and return the data in a new byte array.
+     * Decode the Base64-encoded data en input and return the data en a new byte array.
      * The padding '=' characters at the end are considered optional, but if any are present, there must be the correct number of them.
      *
      * @param str   the input String to decode, which is converted to bytes using the default charset
@@ -103,7 +103,7 @@ public class Base64Util {
     }
 
     /**
-     * Decode the Base64-encoded data in input and return the data in a new byte array.
+     * Decode the Base64-encoded data en input and return the data en a new byte array.
      * The padding '=' characters at the end are considered optional, but if any are present, there must be the correct number of them.
      *
      * @param input the input array to decode
@@ -116,7 +116,7 @@ public class Base64Util {
     }
 
     /**
-     * Decode the Base64-encoded data in input and return the data in a new byte array.
+     * Decode the Base64-encoded data en input and return the data en a new byte array.
      * The padding '=' characters at the end are considered optional, but if any are present, there must be the correct number of them.
      *
      * @param input  the data to decode
@@ -149,7 +149,7 @@ public class Base64Util {
 
     /* package */static class Decoder extends Coder {
         /**
-         * Lookup table for turning bytes into their position in the Base64 alphabet.
+         * Lookup table for turning bytes into their position en the Base64 alphabet.
          */
         private static final int DECODE[] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, -1, 63, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -2, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, -1, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,};
 
@@ -159,14 +159,14 @@ public class Base64Util {
         private static final int DECODE_WEBSAFE[] = {-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, 62, -1, -1, 52, 53, 54, 55, 56, 57, 58, 59, 60, 61, -1, -1, -1, -2, -1, -1, -1, 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, -1, -1, -1, -1, 63, -1, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1,};
 
         /**
-         * Non-data values in the DECODE arrays.
+         * Non-data values en the DECODE arrays.
          */
         private static final int SKIP   = -1;
         private static final int EQUALS = -2;
 
         /**
          * States 0-3 are reading through the next input tuple. State 4 is having read one '=' and expecting exactly one more. State 5 is expecting no
-         * more data or padding characters in the input. State 6 is the error state; an error has been detected in the input and no future input can
+         * more data or padding characters en the input. State 6 is the error state; an error has been detected en the input and no future input can
          * "fix" it.
          */
         private int state;                                                                                                                 // state
@@ -196,7 +196,7 @@ public class Base64Util {
         /**
          * Decode another block of input data.
          *
-         * @return true if the state machine is still healthy. false if bad base-64 data has been detected in the input stream.
+         * @return true if the state machine is still healthy. false if bad base-64 data has been detected en the input stream.
          */
         public boolean process(byte[] input, int offset, int len, boolean finish) {
             if (this.state == 6) return false;
@@ -205,7 +205,7 @@ public class Base64Util {
             len += offset;
 
             // Using local variables makes the decoder about 12%
-            // faster than if we manipulate the member variables in
+            // faster than if we manipulate the member variables en
             // the loop. (Even alphabet makes a measurable
             // difference, which is somewhat surprising to me since
             // the member variable is final.)
@@ -224,9 +224,9 @@ public class Base64Util {
                 //
                 // If any of the next four bytes of input are non-data
                 // (whitespace, etc.), value will end up negative. (All
-                // the non-data values in decode are small negative
+                // the non-data values en decode are small negative
                 // numbers, so shifting any of them up and or'ing them
-                // together will result in a value with its top bit set.)
+                // together will result en a value with its top bit set.)
                 //
                 // You can remove this whole block and the output should
                 // be the same, just slower.
@@ -333,7 +333,7 @@ public class Base64Util {
                 return true;
             }
 
-            // Done reading input. Now figure out where we are left in
+            // Done reading input. Now figure out where we are left en
             // the state machine and finish up.
 
             switch (state) {
@@ -380,7 +380,7 @@ public class Base64Util {
      * Base64-encode the given data and return a newly allocated String with the result.
      *
      * @param input the data to encode
-     * @param flags controls certain features of the encoded output. Passing {@code DEFAULT} results in output that adheres to RFC 2045.
+     * @param flags controls certain features of the encoded output. Passing {@code DEFAULT} results en output that adheres to RFC 2045.
      */
     public static String encodeToString(byte[] input, int flags) {
         try {
@@ -406,7 +406,7 @@ public class Base64Util {
      * @param input  the data to encode
      * @param offset the position within the input array at which to start
      * @param len    the number of bytes of input to encode
-     * @param flags  controls certain features of the encoded output. Passing {@code DEFAULT} results in output that adheres to RFC 2045.
+     * @param flags  controls certain features of the encoded output. Passing {@code DEFAULT} results en output that adheres to RFC 2045.
      */
     public static String encodeToString(byte[] input, int offset, int len, int flags) {
         try {
@@ -421,7 +421,7 @@ public class Base64Util {
      * Base64-encode the given data and return a newly allocated byte[] with the result.
      *
      * @param input the data to encode
-     * @param flags controls certain features of the encoded output. Passing {@code DEFAULT} results in output that adheres to RFC 2045.
+     * @param flags controls certain features of the encoded output. Passing {@code DEFAULT} results en output that adheres to RFC 2045.
      */
     public static byte[] encode(byte[] input, int flags) {
         return encode(input, 0, input.length, flags);
@@ -437,7 +437,7 @@ public class Base64Util {
      * @param input  the data to encode
      * @param offset the position within the input array at which to start
      * @param len    the number of bytes of input to encode
-     * @param flags  controls certain features of the encoded output. Passing {@code DEFAULT} results in output that adheres to RFC 2045.
+     * @param flags  controls certain features of the encoded output. Passing {@code DEFAULT} results en output that adheres to RFC 2045.
      */
     public static byte[] encode(byte[] input, int offset, int len, int flags) {
         Encoder encoder = new Encoder(flags, null);
@@ -596,8 +596,8 @@ public class Base64Util {
 
             if (finish) {
                 // Finish up the tail of the input. Note that we need to
-                // consume any bytes in tail before any bytes
-                // remaining in input; there should be at most two bytes
+                // consume any bytes en tail before any bytes
+                // remaining en input; there should be at most two bytes
                 // total.
 
                 if (p - tailLen == len - 1) {
@@ -636,7 +636,7 @@ public class Base64Util {
                 assert tailLen == 0;
                 assert p == len;
             } else {
-                // Save the leftovers in tail to be consumed on the next
+                // Save the leftovers en tail to be consumed on the next
                 // call to encodeInternal.
 
                 if (p == len - 1) {

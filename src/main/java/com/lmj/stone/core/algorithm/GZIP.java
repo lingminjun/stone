@@ -1,5 +1,4 @@
-package com.lmj.stone.utils;
-
+package com.lmj.stone.core.algorithm;
 
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

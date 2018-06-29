@@ -1,6 +1,6 @@
 package com.lmj.stone.idl;
 
-import com.lmj.stone.utils.MD5;
+import com.lmj.stone.core.algorithm.MD5;
 
 import java.io.Serializable;
 

@@ -16,6 +16,7 @@
         <spring-boot-starter-redis-version>1.3.2.RELEASE</spring-boot-starter-redis-version>
         <redis.version>3.0.0</redis.version>
         <fastjson.version>1.2.47</fastjson.version>
+        <bouncycastle.version>1.58</bouncycastle.version>
         <org.aspectj.version>1.9.1</org.aspectj.version>
     </properties>
 
@@ -96,6 +97,18 @@
             <groupId>com.alibaba</groupId>
             <artifactId>fastjson</artifactId>
             <version>${fastjson.version}</version>
+        </dependency>
+
+        <!--采用 支持 JDK-1.5 to JDK-1.8 的1.58版本, 废弃掉支持JDK-1.4的1.50版本 -->
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcprov-jdk15on</artifactId>
+            <version>${bouncycastle.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.bouncycastle</groupId>
+            <artifactId>bcpkix-jdk15on</artifactId>
+            <version>${bouncycastle.version}</version>
         </dependency>
 
         <!-- End : Spring Dependencies -->
