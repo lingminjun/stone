@@ -91,6 +91,10 @@ public final class Injects {
     }
 
     private static void setFieldValueForName(Object target, String fieldName, Class<?> type, Object value, boolean implicit, Class root) {
+        if (value == null) {
+            return;
+        }
+
         Field fieldToSet1 = getDeclaredField(target, fieldName, root);
         Field fieldToSet2 = null;
 
